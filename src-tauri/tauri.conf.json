@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "shakshuka",
+  "version": "0.1.0",
+  "identifier": "com.shakshuka.app",
+  "build": {
+    "beforeDevCommand": "next dev",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "next build && next export -o out",
+    "distDir": "../out"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "shakshuka",
+        "width": 1100,
+        "height": 780,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "windows": {
+      "wix": null,
+      "nsis": {
+        "installMode": "perMachine",
+        "allowToChangeInstallationDirectory": true
+      }
+    }
+  }
+}

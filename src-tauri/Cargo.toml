@@ -1,0 +1,23 @@
+[package]
+name = "shakshuka"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ # Tauri v2 core
+ tauri = { version = "2", features = ["wry", "macos-private-api"] }
+ # Autostart plugin v2
+ tauri-plugin-autostart = "2"
+ # Filesystem plugin v2
+ tauri-plugin-fs = "2"
+
+[build-dependencies]
+ tauri-build = { version = "2", features = [] }
+
+[profile.release]
+# Fast builds while keeping size reasonable
+codegen-units = 256
+lto = true
+strip = true
