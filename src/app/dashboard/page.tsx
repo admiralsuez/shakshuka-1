@@ -22,28 +22,6 @@ export default function DashboardPage() {
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your daily strikes, monitor progress, and manage tasks.</p>
         </div>
-        
-        {/* View Toggle */}
-        <div className="flex items-center gap-1 rounded-md border bg-card p-1">
-          <Button
-            size="sm"
-            variant={viewMode === "relaxed" ? "secondary" : "ghost"}
-            onClick={() => setViewMode("relaxed")}
-            className="h-8 w-8 p-0"
-            aria-label="Relaxed view"
-          >
-            <LayoutList className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === "compact" ? "secondary" : "ghost"}
-            onClick={() => setViewMode("compact")}
-            className="h-8 w-8 p-0"
-            aria-label="Compact view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
 
       <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-1)]/10 via-[var(--chart-3)]/10 to-[var(--chart-2)]/10 p-4 md:p-6">
@@ -55,10 +33,34 @@ export default function DashboardPage() {
       </section>
 
       <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-5)]/10 via-[var(--chart-4)]/10 to-[var(--chart-3)]/10 p-4 md:p-6">
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--chart-5)]" />
-          Your tasks
-        </h2>
+        <div className="flex items-center justify-between gap-4 mb-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--chart-5)]" />
+            Your tasks
+          </h2>
+          
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 rounded-md border bg-card p-1">
+            <Button
+              size="sm"
+              variant={viewMode === "relaxed" ? "secondary" : "ghost"}
+              onClick={() => setViewMode("relaxed")}
+              className="h-8 w-8 p-0"
+              aria-label="Relaxed view"
+            >
+              <LayoutList className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "compact" ? "secondary" : "ghost"}
+              onClick={() => setViewMode("compact")}
+              className="h-8 w-8 p-0"
+              aria-label="Compact view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <Tasks compact={viewMode === "compact"} />
       </section>
     </div>
