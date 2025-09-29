@@ -94,7 +94,7 @@ async function saveTasksAPI(tasks: Task[]): Promise<void> {
   }).catch(() => {});
 }
 
-export const Tasks = () => {
+export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -324,18 +324,18 @@ export const Tasks = () => {
 
   return (
     <Card className="w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between text-xl">
+      <CardHeader className={compact ? "pb-3" : ""}>
+        <CardTitle className={`flex items-center justify-between ${compact ? "text-lg" : "text-xl"}`}>
           <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-normal text-muted-foreground">{remaining} active</span>
+            <span className={`font-normal text-muted-foreground ${compact ? "text-xs" : "text-sm"}`}>{remaining} active</span>
             <Button size="icon" variant="ghost" onClick={() => setShowSearch(v => !v)} aria-label="Search tasks">
               <Search className="h-4 w-4" />
             </Button>
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className={compact ? "space-y-3" : "space-y-6"}>
         {showSearch && (
           <div className="space-y-2">
             <Input placeholder="Search tasks…" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -367,7 +367,9 @@ export const Tasks = () => {
         <div className="flex items-center justify-end">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button className="shrink-0"><Plus className="h-4 w-4 mr-1" /> Add Task</Button>
+              <Button className={`shrink-0 ${compact ? "h-8 text-sm" : ""}`}>
+                <Plus className={`mr-1 ${compact ? "h-3 w-3" : "h-4 w-4"}`} /> Add Task
+              </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
@@ -427,27 +429,27 @@ export const Tasks = () => {
         {/* Tabs for Active / Expired / Completed */}
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
-            <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
-            <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
+            <TabsTrigger value="active" className={compact ? "text-xs" : ""}>Active ({activeTasks.length})</TabsTrigger>
+            <TabsTrigger value="expired" className={compact ? "text-xs" : ""}>Expired ({expiredTasks.length})</TabsTrigger>
+            <TabsTrigger value="completed" className={compact ? "text-xs" : ""}>Completed ({completedTasks.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="mt-2">
             <ul className="divide-y divide-border rounded-md border">
               {activeFiltered.length === 0 && (
-                <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
+                <li className={`text-muted-foreground ${compact ? "p-3 text-xs" : "p-4 text-sm"}`}>No active tasks.</li>
               )}
               {activeFiltered.map((t) => {
                 const struck = struckTodayIds.has(t.id);
                 return (
-                  <li key={t.id} className="flex items-start gap-3 p-4">
+                  <li key={t.id} className={`flex items-start gap-3 ${compact ? "p-3" : "p-4"}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className={`text-sm sm:text-base ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
-                            {t.title} {t.dueDate && <span className="ml-2 text-xs text-muted-foreground">(due {t.dueDate})</span>}{typeof t.dueHour === "number" && !t.dueDate && <span className="ml-2 text-xs text-muted-foreground">(due {t.dueHour}:00)</span>}
+                          <p className={`${compact ? "text-xs sm:text-sm" : "text-sm sm:text-base"} ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
+                            {t.title} {t.dueDate && <span className={`ml-2 text-muted-foreground ${compact ? "text-[10px]" : "text-xs"}`}>(due {t.dueDate})</span>}{typeof t.dueHour === "number" && !t.dueDate && <span className={`ml-2 text-muted-foreground ${compact ? "text-[10px]" : "text-xs"}`}>(due {t.dueHour}:00)</span>}
                           </p>
-                          {t.notes && (
+                          {t.notes && !compact && (
                             <p className={`mt-1 text-xs sm:text-sm ${t.completed || struck ? "line-through text-muted-foreground" : "text-muted-foreground"}`}>
                               {t.notes}
                             </p>
@@ -455,7 +457,7 @@ export const Tasks = () => {
                           {t.tags && t.tags.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {t.tags.map(tag => (
-                                <span key={tag} className="px-2 py-0.5 text-[11px] rounded-full bg-accent text-accent-foreground">#{tag}</span>
+                                <span key={tag} className={`px-2 py-0.5 rounded-full bg-accent text-accent-foreground ${compact ? "text-[9px]" : "text-[11px]"}`}>#{tag}</span>
                               ))}
                             </div>
                           )}
@@ -463,7 +465,7 @@ export const Tasks = () => {
                         <div className="flex items-center gap-1">
                           <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)}>Strike</Button>
+                              <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className={compact ? "h-7 text-xs" : ""}>Strike</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                               <DialogHeader>
@@ -479,8 +481,8 @@ export const Tasks = () => {
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
-                          <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                            <Trash2 className="h-4 w-4" />
+                          <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className={compact ? "h-7 w-7" : ""}>
+                            <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
                           </Button>
                         </div>
                       </div>
@@ -494,21 +496,21 @@ export const Tasks = () => {
           <TabsContent value="expired" className="mt-2">
             <ul className="divide-y divide-border rounded-md border">
               {expiredFiltered.length === 0 && (
-                <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
+                <li className={`text-muted-foreground ${compact ? "p-3 text-xs" : "p-4 text-sm"}`}>No expired tasks.</li>
               )}
               {expiredFiltered.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 p-4">
+                <li key={t.id} className={`flex items-start gap-3 ${compact ? "p-3" : "p-4"}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-sm sm:text-base text-destructive">{t.title} <span className="ml-2 text-xs text-muted-foreground">(due {t.dueDate ?? `${t.dueHour}:00`})</span></p>
-                        {t.notes && (
-                          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
+                        <p className={`text-destructive ${compact ? "text-xs sm:text-sm" : "text-sm sm:text-base"}`}>{t.title} <span className={`ml-2 text-muted-foreground ${compact ? "text-[10px]" : "text-xs"}`}>(due {t.dueDate ?? `${t.dueHour}:00`})</span></p>
+                        {t.notes && !compact && (
+                          <p className={`mt-1 text-xs sm:text-sm text-muted-foreground`}>{t.notes}</p>
                         )}
                         {t.tags && t.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {t.tags.map(tag => (
-                              <span key={tag} className="px-2 py-0.5 text-[11px] rounded-full bg-accent text-accent-foreground">#{tag}</span>
+                              <span key={tag} className={`px-2 py-0.5 rounded-full bg-accent text-accent-foreground ${compact ? "text-[9px]" : "text-[11px]"}`}>#{tag}</span>
                             ))}
                           </div>
                         )}
@@ -516,7 +518,7 @@ export const Tasks = () => {
                       <div className="flex items-center gap-1">
                         <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                           <DialogTrigger asChild>
-                            <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)}>Strike</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className={compact ? "h-7 text-xs" : ""}>Strike</Button>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-md">
                             <DialogHeader>
@@ -532,8 +534,8 @@ export const Tasks = () => {
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
-                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                          <Trash2 className="h-4 w-4" />
+                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className={compact ? "h-7 w-7" : ""}>
+                          <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
                         </Button>
                       </div>
                     </div>
@@ -546,27 +548,27 @@ export const Tasks = () => {
           <TabsContent value="completed" className="mt-2">
             <ul className="divide-y divide-border rounded-md border">
               {completedFiltered.length === 0 && (
-                <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
+                <li className={`text-muted-foreground ${compact ? "p-3 text-xs" : "p-4 text-sm"}`}>No completed tasks.</li>
               )}
               {completedFiltered.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 p-4">
+                <li key={t.id} className={`flex items-start gap-3 ${compact ? "p-3" : "p-4"}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-sm sm:text-base line-through text-muted-foreground">{t.title}</p>
-                        {t.notes && (
-                          <p className="mt-1 text-xs sm:text-sm line-through text-muted-foreground">{t.notes}</p>
+                        <p className={`line-through text-muted-foreground ${compact ? "text-xs sm:text-sm" : "text-sm sm:text-base"}`}>{t.title}</p>
+                        {t.notes && !compact && (
+                          <p className={`mt-1 text-xs sm:text-sm line-through text-muted-foreground`}>{t.notes}</p>
                         )}
                         {t.tags && t.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {t.tags.map(tag => (
-                              <span key={tag} className="px-2 py-0.5 text-[11px] rounded-full bg-accent text-accent-foreground line-through">#{tag}</span>
+                              <span key={tag} className={`px-2 py-0.5 rounded-full bg-accent text-accent-foreground line-through ${compact ? "text-[9px]" : "text-[11px]"}`}>#{tag}</span>
                             ))}
                           </div>
                         )}
                       </div>
-                      <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                        <Trash2 className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className={compact ? "h-7 w-7" : ""}>
+                        <Trash2 className={compact ? "h-3 w-3" : "h-4 w-4"} />
                       </Button>
                     </div>
                   </div>
@@ -575,8 +577,6 @@ export const Tasks = () => {
             </ul>
           </TabsContent>
         </Tabs>
-
-        {/* bulk action buttons removed per request */}
       </CardContent>
     </Card>
   );

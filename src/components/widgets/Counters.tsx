@@ -39,7 +39,7 @@ async function loadTasks(): Promise<Task[]> {
   }
 }
 
-export const Counters = () => {
+export const Counters = ({ compact = false }: { compact?: boolean }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [strikes, setStrikes] = useState<StrikeEntry[]>([]);
   const [timezone, setTimezone] = useState<string>("UTC");
@@ -135,23 +135,25 @@ export const Counters = () => {
   }, [tasks, timezone, today, hour, strikes]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">
+    <div className={`grid grid-cols-1 sm:grid-cols-3 w-full max-w-3xl ${
+      compact ? "gap-2" : "gap-3"
+    }`}>
       <Card>
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Striked (month)</div>
-          <Badge variant="secondary" className="text-base">{strikesThisMonth}</Badge>
+        <CardContent className={compact ? "p-3" : "p-4 flex items-center justify-between"}>
+          <div className={`text-muted-foreground ${compact ? "text-xs mb-1" : "text-sm"}`}>Striked (month)</div>
+          <Badge variant="secondary" className={compact ? "text-sm" : "text-base"}>{strikesThisMonth}</Badge>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Expired (today)</div>
-          <Badge variant="secondary" className="text-base">{expiredNow}</Badge>
+        <CardContent className={compact ? "p-3" : "p-4 flex items-center justify-between"}>
+          <div className={`text-muted-foreground ${compact ? "text-xs mb-1" : "text-sm"}`}>Expired (today)</div>
+          <Badge variant="secondary" className={compact ? "text-sm" : "text-base"}>{expiredNow}</Badge>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Completed (month)</div>
-          <Badge variant="secondary" className="text-base">{completedThisMonth}</Badge>
+        <CardContent className={compact ? "p-3" : "p-4 flex items-center justify-between"}>
+          <div className={`text-muted-foreground ${compact ? "text-xs mb-1" : "text-sm"}`}>Completed (month)</div>
+          <Badge variant="secondary" className={compact ? "text-sm" : "text-base"}>{completedThisMonth}</Badge>
         </CardContent>
       </Card>
     </div>

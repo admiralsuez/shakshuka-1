@@ -7,6 +7,14 @@ import { Calendar, ChevronLeft, ChevronRight, GripVertical } from "lucide-react"
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
 import type { Task } from "@/components/tasks/Tasks";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Tauri detection
 async function isTauri(): Promise<boolean> {
@@ -66,6 +74,13 @@ type ContextMenu = {
 
 const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180];
 
+// Helper to check if task extends past midnight
+const checkExtendsPastMidnight = (hour: number, minute: number, durationMinutes: number) => {
+  const startMinutes = hour * 60 + minute;
+  const endMinutes = startMinutes + durationMinutes;
+  return endMinutes >= 24 * 60; // Past midnight
+};
+
 // Generate hourly slots from 6 AM to 11 PM
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6-23
 
@@ -93,7 +108,16 @@ export const PlannerClient = () => {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<{ hour: number; minute: number; date: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
-  const [currentDay, setCurrentDay] = useState(0); // 0 = today, 1 = tomorrow, 2 = day after
+  const [currentDay, setCurrentDay] = useState(0);
+  const [midnightDialog, setMidnightDialog] = useState<{
+    open: boolean;
+    taskId: string;
+    task: Task;
+    startHour: number;
+    startMinute: number;
+    duration: number;
+    date: string;
+  } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const scheduleRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +187,13 @@ export const PlannerClient = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [contextMenu]);
 
+  // Scroll to top when changing days
+  useEffect(() => {
+    if (scheduleRef.current) {
+      scheduleRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentDay]);
+
   const unscheduledTasks = useMemo(() => {
     const scheduledIds = new Set(
       scheduled
@@ -199,15 +230,29 @@ export const PlannerClient = () => {
     const task = tasks.find(t => t.id === draggedTaskId);
     if (!task) return;
 
-    const newScheduled: ScheduledTask = {
-      taskId: draggedTaskId,
-      task,
-      startHour: hour,
-      startMinute: minute,
-      durationMinutes: 30,
-      date: currentDateString,
-    };
-    setScheduled(prev => [...prev, newScheduled]);
+    // Check if default 30min extends past midnight
+    if (checkExtendsPastMidnight(hour, minute, 30)) {
+      setMidnightDialog({
+        open: true,
+        taskId: draggedTaskId,
+        task,
+        startHour: hour,
+        startMinute: minute,
+        duration: 30,
+        date: currentDateString,
+      });
+    } else {
+      const newScheduled: ScheduledTask = {
+        taskId: draggedTaskId,
+        task,
+        startHour: hour,
+        startMinute: minute,
+        durationMinutes: 30,
+        date: currentDateString,
+      };
+      setScheduled(prev => [...prev, newScheduled]);
+    }
+    
     setDraggedTaskId(null);
     setDragOverSlot(null);
   };
@@ -218,14 +263,53 @@ export const PlannerClient = () => {
   };
 
   const changeDuration = (index: number, newDuration: number) => {
-    setScheduled(prev =>
-      prev.map((s, i) => (i === index ? { ...s, durationMinutes: newDuration } : s))
-    );
+    const scheduledTask = scheduled[index];
+    if (!scheduledTask) return;
+
+    // Check if new duration extends past midnight
+    if (checkExtendsPastMidnight(scheduledTask.startHour, scheduledTask.startMinute, newDuration)) {
+      setMidnightDialog({
+        open: true,
+        taskId: scheduledTask.taskId,
+        task: scheduledTask.task,
+        startHour: scheduledTask.startHour,
+        startMinute: scheduledTask.startMinute,
+        duration: newDuration,
+        date: scheduledTask.date,
+      });
+    } else {
+      setScheduled(prev =>
+        prev.map((s, i) => (i === index ? { ...s, durationMinutes: newDuration } : s))
+      );
+    }
     setContextMenu(null);
   };
 
   const removeScheduled = (index: number) => {
     setScheduled(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveToNextDay = () => {
+    if (!midnightDialog) return;
+    
+    const nextDate = new Date(midnightDialog.date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextDateString = getDateString(nextDate);
+
+    const newScheduled: ScheduledTask = {
+      taskId: midnightDialog.taskId,
+      task: midnightDialog.task,
+      startHour: 0, // Start at midnight next day
+      startMinute: 0,
+      durationMinutes: midnightDialog.duration,
+      date: nextDateString,
+    };
+    setScheduled(prev => [...prev, newScheduled]);
+    setMidnightDialog(null);
+  };
+
+  const handleCancelMidnight = () => {
+    setMidnightDialog(null);
   };
 
   const renderTimeSlots = () => {
@@ -397,6 +481,26 @@ export const PlannerClient = () => {
           ))}
         </div>
       )}
+
+      {/* Midnight Dialog */}
+      <Dialog open={midnightDialog?.open ?? false} onOpenChange={(open) => !open && handleCancelMidnight()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Task extends past midnight</DialogTitle>
+            <DialogDescription>
+              This task will extend beyond the current day. Would you like to move it to the next day starting at midnight?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelMidnight}>
+              Cancel
+            </Button>
+            <Button onClick={handleMoveToNextDay}>
+              Move to next day
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
