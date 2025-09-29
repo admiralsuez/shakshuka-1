@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, GripVertical } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
 import type { Task } from "@/components/tasks/Tasks";
@@ -55,6 +55,7 @@ type ScheduledTask = {
   startHour: number; // 0-23
   startMinute: number; // 0 or 30
   durationMinutes: number; // 30, 60, 90, 120, 150, 180
+  date: string; // YYYY-MM-DD format
 };
 
 type ContextMenu = {
@@ -68,22 +69,86 @@ const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180];
 // Generate hourly slots from 6 AM to 11 PM
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6-23
 
+// Helper to get date string
+const getDateString = (date: Date) => {
+  return date.toISOString().split('T')[0];
+};
+
+// Helper to format date label
+const formatDateLabel = (date: Date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+  
+  if (targetDate.getTime() === today.getTime()) {
+    return "Today";
+  }
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+};
+
 export const PlannerClient = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledTask[]>([]);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<{ hour: number; minute: number; date: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const [currentDay, setCurrentDay] = useState(0); // 0 = today, 1 = tomorrow, 2 = day after
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const scheduleRef = useRef<HTMLDivElement>(null);
 
-  // Load tasks on mount
+  const currentDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + currentDay);
+    return date;
+  }, [currentDay]);
+
+  const currentDateString = useMemo(() => getDateString(currentDate), [currentDate]);
+
+  // Load tasks and scheduled data on mount
   useEffect(() => {
     (async () => {
       const tauri = await isTauri();
       const data = tauri ? await fetchTasksTauri() : await fetchTasksAPI();
-      // Only show active (not completed) tasks
       setTasks(data.filter(t => !t.completed));
+
+      // Load scheduled tasks from localStorage
+      const stored = localStorage.getItem("planner_schedule");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setScheduled(parsed as ScheduledTask[]);
+          }
+        } catch (e) {
+          console.error("Failed to parse scheduled tasks", e);
+        }
+      }
     })();
   }, []);
+
+  // Save scheduled tasks to localStorage whenever they change
+  useEffect(() => {
+    if (scheduled.length > 0 || localStorage.getItem("planner_schedule")) {
+      localStorage.setItem("planner_schedule", JSON.stringify(scheduled));
+    }
+  }, [scheduled]);
+
+  // Auto-scroll to current time when viewing today
+  useEffect(() => {
+    if (currentDay === 0 && scheduleRef.current) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      if (currentHour >= 6 && currentHour <= 23) {
+        setTimeout(() => {
+          const hourElement = scheduleRef.current?.querySelector(`[data-hour="${currentHour}"]`);
+          if (hourElement) {
+            hourElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 100);
+      }
+    }
+  }, [currentDay]);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -99,9 +164,17 @@ export const PlannerClient = () => {
   }, [contextMenu]);
 
   const unscheduledTasks = useMemo(() => {
-    const scheduledIds = new Set(scheduled.map(s => s.taskId));
+    const scheduledIds = new Set(
+      scheduled
+        .filter(s => s.date === currentDateString)
+        .map(s => s.taskId)
+    );
     return tasks.filter(t => !scheduledIds.has(t.id));
-  }, [tasks, scheduled]);
+  }, [tasks, scheduled, currentDateString]);
+
+  const scheduledForCurrentDay = useMemo(() => {
+    return scheduled.filter(s => s.date === currentDateString);
+  }, [scheduled, currentDateString]);
 
   const handleDragStart = (taskId: string) => {
     setDraggedTaskId(taskId);
@@ -109,6 +182,16 @@ export const PlannerClient = () => {
 
   const handleDragEnd = () => {
     setDraggedTaskId(null);
+    setDragOverSlot(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, hour: number, minute: number) => {
+    e.preventDefault();
+    setDragOverSlot({ hour, minute, date: currentDateString });
+  };
+
+  const handleDragLeave = () => {
+    setDragOverSlot(null);
   };
 
   const handleDrop = (hour: number, minute: number) => {
@@ -116,16 +199,17 @@ export const PlannerClient = () => {
     const task = tasks.find(t => t.id === draggedTaskId);
     if (!task) return;
 
-    // Add to schedule with default 30 min duration
     const newScheduled: ScheduledTask = {
       taskId: draggedTaskId,
       task,
       startHour: hour,
       startMinute: minute,
       durationMinutes: 30,
+      date: currentDateString,
     };
     setScheduled(prev => [...prev, newScheduled]);
     setDraggedTaskId(null);
+    setDragOverSlot(null);
   };
 
   const handleContextMenu = (e: React.MouseEvent, index: number) => {
@@ -152,23 +236,30 @@ export const PlannerClient = () => {
       ];
 
       return slots.map(slot => {
-        // Find scheduled tasks in this slot
-        const tasksInSlot = scheduled.filter(
+        const tasksInSlot = scheduledForCurrentDay.filter(
           s => s.startHour === slot.hour && s.startMinute === slot.minute
         );
+
+        const isDropTarget = dragOverSlot?.hour === slot.hour && 
+                            dragOverSlot?.minute === slot.minute &&
+                            dragOverSlot?.date === currentDateString;
 
         return (
           <div
             key={`${slot.hour}-${slot.minute}`}
-            className="relative border-b border-border min-h-[60px] flex items-start"
-            onDragOver={(e) => e.preventDefault()}
+            data-hour={slot.minute === 0 ? slot.hour : undefined}
+            className={`relative border-b border-border min-h-[60px] flex items-start transition-colors ${
+              isDropTarget ? 'bg-primary/5 border-primary border-2 border-dashed' : ''
+            }`}
+            onDragOver={(e) => handleDragOver(e, slot.hour, slot.minute)}
+            onDragLeave={handleDragLeave}
             onDrop={() => handleDrop(slot.hour, slot.minute)}
           >
             <div className="w-16 text-xs text-muted-foreground p-2 border-r border-border shrink-0">
               {slot.label}
             </div>
             <div className="flex-1 p-2 relative">
-              {tasksInSlot.map((st, idx) => {
+              {tasksInSlot.map((st) => {
                 const globalIndex = scheduled.indexOf(st);
                 const heightMultiplier = st.durationMinutes / 30;
                 return (
@@ -211,9 +302,27 @@ export const PlannerClient = () => {
       <div className="flex items-center gap-2 mb-6">
         <Calendar className="h-6 w-6" />
         <h1 className="text-2xl font-semibold">Daily Planner</h1>
-        <span className="ml-auto text-sm text-muted-foreground">
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCurrentDay(prev => Math.max(0, prev - 1))}
+            disabled={currentDay === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground min-w-[140px] text-center">
+            {formatDateLabel(currentDate)}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCurrentDay(prev => Math.min(2, prev + 1))}
+            disabled={currentDay === 2}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
@@ -256,12 +365,12 @@ export const PlannerClient = () => {
         {/* Right: Schedule */}
         <Card className="p-0 overflow-hidden">
           <div className="sticky top-0 bg-card border-b border-border p-4 z-10">
-            <h2 className="text-lg font-semibold">Today's Schedule</h2>
+            <h2 className="text-lg font-semibold">Schedule</h2>
             <p className="text-xs text-muted-foreground mt-1">
               Drag tasks from the left. Right-click scheduled tasks to adjust duration.
             </p>
           </div>
-          <div className="overflow-y-auto max-h-[calc(100vh-250px)]">
+          <div ref={scheduleRef} className="overflow-y-auto max-h-[calc(100vh-250px)]">
             {renderTimeSlots()}
           </div>
         </Card>
