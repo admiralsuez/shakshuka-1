@@ -46,24 +46,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <section className={`rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-1)]/10 via-[var(--chart-3)]/10 to-[var(--chart-2)]/10 ${
-        viewMode === "compact" ? "p-3 md:p-4" : "p-4 md:p-6"
-      }`}>
-        <h2 className={`font-semibold mb-3 flex items-center gap-2 ${
-          viewMode === "compact" ? "text-base" : "text-lg"
-        }`}>
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-1)]/10 via-[var(--chart-3)]/10 to-[var(--chart-2)]/10 p-4 md:p-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--chart-1)]" />
           Quick stats
         </h2>
-        <Counters compact={viewMode === "compact"} />
+        <Counters />
       </section>
 
-      <section className={`rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-5)]/10 via-[var(--chart-4)]/10 to-[var(--chart-3)]/10 ${
-        viewMode === "compact" ? "p-3 md:p-4" : "p-4 md:p-6"
-      }`}>
-        <h2 className={`font-semibold mb-3 flex items-center gap-2 ${
-          viewMode === "compact" ? "text-base" : "text-lg"
-        }`}>
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-5)]/10 via-[var(--chart-4)]/10 to-[var(--chart-3)]/10 p-4 md:p-6">
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--chart-5)]" />
           Your tasks
         </h2>

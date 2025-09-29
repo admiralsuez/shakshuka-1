@@ -81,8 +81,8 @@ const checkExtendsPastMidnight = (hour: number, minute: number, durationMinutes:
   return endMinutes >= 24 * 60; // Past midnight
 };
 
-// Generate hourly slots from 6 AM to 11 PM
-const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6-23
+// Generate hourly slots from 12 AM (midnight) to 11 PM
+const HOURS = Array.from({ length: 24 }, (_, i) => i); // 0-23
 
 // Helper to get date string
 const getDateString = (date: Date) => {
@@ -163,14 +163,12 @@ export const PlannerClient = () => {
     if (currentDay === 0 && scheduleRef.current) {
       const now = new Date();
       const currentHour = now.getHours();
-      if (currentHour >= 6 && currentHour <= 23) {
-        setTimeout(() => {
-          const hourElement = scheduleRef.current?.querySelector(`[data-hour="${currentHour}"]`);
-          if (hourElement) {
-            hourElement.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, 100);
-      }
+      setTimeout(() => {
+        const hourElement = scheduleRef.current?.querySelector(`[data-hour="${currentHour}"]`);
+        if (hourElement) {
+          hourElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
     }
   }, [currentDay]);
 
