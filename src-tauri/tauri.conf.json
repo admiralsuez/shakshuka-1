@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.shakshuka.app",
   "build": {
-    "beforeDevCommand": "next dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "next build && next export -o out",
-    "distDir": "../out"
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../out"
   },
   "app": {
     "windows": [
@@ -27,10 +27,7 @@
     "targets": "all",
     "windows": {
       "wix": null,
-      "nsis": {
-        "installMode": "perMachine",
-        "allowToChangeInstallationDirectory": true
-      }
+      "nsis": null
     }
   }
 }
