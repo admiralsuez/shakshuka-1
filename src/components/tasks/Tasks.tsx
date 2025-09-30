@@ -325,10 +325,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   return (
     <Card className="w-full max-w-3xl">
       <CardHeader className={compact ? "pb-3" : ""}>
-        <CardTitle className={`flex items-center justify-between ${compact ? "text-lg" : "text-xl"}`}>
+        <CardTitle className={`flex items-center justify-between text-xl`}>
           <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
           <div className="flex items-center gap-2">
-            <span className={`font-normal text-muted-foreground ${compact ? "text-xs" : "text-sm"}`}>{remaining} active</span>
+            <span className={`font-normal text-muted-foreground text-sm`}>{remaining} active</span>
             <Button size="icon" variant="ghost" onClick={() => setShowSearch(v => !v)} aria-label="Search tasks">
               <Search className="h-4 w-4" />
             </Button>
@@ -367,8 +367,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         <div className="flex items-center justify-end">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button className={`shrink-0 ${compact ? "h-8 text-sm" : ""}`}>
-                <Plus className={`mr-1 ${compact ? "h-3 w-3" : "h-4 w-4"}`} /> Add Task
+              <Button className="shrink-0">
+                <Plus className="mr-1 h-4 w-4" /> Add Task
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
@@ -429,43 +429,43 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         {/* Tabs for Active / Expired / Completed */}
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
-            <TabsTrigger value="active" className={compact ? "text-xs" : ""}>Active ({activeTasks.length})</TabsTrigger>
-            <TabsTrigger value="expired" className={compact ? "text-xs" : ""}>Expired ({expiredTasks.length})</TabsTrigger>
-            <TabsTrigger value="completed" className={compact ? "text-xs" : ""}>Completed ({completedTasks.length})</TabsTrigger>
+            <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
+            <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="mt-2">
             {compact ? (
-              // Compact view: Small cards in grid
+              // Compact view: Smaller cards in grid - SAME font sizes
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {activeFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-xs col-span-full">No active tasks.</p>
+                  <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
                 )}
                 {activeFiltered.map((t) => {
                   const struck = struckTodayIds.has(t.id);
                   return (
-                    <div key={t.id} className="p-3 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                    <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors">
                       <div className="space-y-2">
-                        <p className={`text-xs font-medium line-clamp-2 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
+                        <p className={`text-sm font-medium line-clamp-2 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
                           {t.title}
                         </p>
                         {(t.dueDate || typeof t.dueHour === "number") && (
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             Due: {t.dueDate || `${t.dueHour}:00`}
                           </p>
                         )}
                         {t.tags && t.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {t.tags.slice(0, 2).map(tag => (
-                              <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[9px]">#{tag}</span>
+                              <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
                             ))}
-                            {t.tags.length > 2 && <span className="text-[9px] text-muted-foreground">+{t.tags.length - 2}</span>}
+                            {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
                           </div>
                         )}
                         <div className="flex items-center gap-1 pt-1">
                           <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className="h-6 text-[10px] flex-1">Strike</Button>
+                              <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className="flex-1">Strike</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                               <DialogHeader>
@@ -481,8 +481,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
-                          <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="h-6 w-6">
-                            <Trash2 className="h-3 w-3" />
+                          <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
@@ -553,30 +553,30 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
 
           <TabsContent value="expired" className="mt-2">
             {compact ? (
-              // Compact view: Small cards in grid
+              // Compact view: Smaller cards in grid - SAME font sizes
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {expiredFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-xs col-span-full">No expired tasks.</p>
+                  <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
                 )}
                 {expiredFiltered.map((t) => (
-                  <div key={t.id} className="p-3 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                  <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors">
                     <div className="space-y-2">
-                      <p className="text-xs font-medium line-clamp-2 text-destructive">{t.title}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-sm font-medium line-clamp-2 text-destructive">{t.title}</p>
+                      <p className="text-xs text-muted-foreground">
                         Due: {t.dueDate ?? `${t.dueHour}:00`}
                       </p>
                       {t.tags && t.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {t.tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[9px]">#{tag}</span>
+                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
                           ))}
-                          {t.tags.length > 2 && <span className="text-[9px] text-muted-foreground">+{t.tags.length - 2}</span>}
+                          {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
                         </div>
                       )}
                       <div className="flex items-center gap-1 pt-1">
                         <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                           <DialogTrigger asChild>
-                            <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className="h-6 text-[10px] flex-1">Strike</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className="flex-1">Strike</Button>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-md">
                             <DialogHeader>
@@ -592,8 +592,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
-                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="h-6 w-6">
-                          <Trash2 className="h-3 w-3" />
+                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -656,26 +656,26 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
 
           <TabsContent value="completed" className="mt-2">
             {compact ? (
-              // Compact view: Small cards in grid
+              // Compact view: Smaller cards in grid - SAME font sizes
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {completedFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-xs col-span-full">No completed tasks.</p>
+                  <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
                 )}
                 {completedFiltered.map((t) => (
-                  <div key={t.id} className="p-3 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                  <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors">
                     <div className="space-y-2">
-                      <p className="text-xs font-medium line-clamp-2 line-through text-muted-foreground">{t.title}</p>
+                      <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground">{t.title}</p>
                       {t.tags && t.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {t.tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[9px] line-through">#{tag}</span>
+                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px] line-through">#{tag}</span>
                           ))}
-                          {t.tags.length > 2 && <span className="text-[9px] text-muted-foreground">+{t.tags.length - 2}</span>}
+                          {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
                         </div>
                       )}
                       <div className="flex items-center justify-end pt-1">
-                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="h-6 w-6">
-                          <Trash2 className="h-3 w-3" />
+                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
