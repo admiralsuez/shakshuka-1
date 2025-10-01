@@ -23,9 +23,9 @@ const TASKS_FILE = "tasks.json";
 async function loadTasks(): Promise<Task[]> {
   try {
     if (await isTauri()) {
-      const ok = await exists(TASKS_FILE, { baseDir: BaseDirectory.App });
+      const ok = await exists(TASKS_FILE, { baseDir: BaseDirectory.AppConfig });
       if (!ok) return [];
-      const txt = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.App });
+      const txt = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.AppConfig });
       const data = JSON.parse(txt);
       return Array.isArray(data) ? (data as Task[]) : [];
     }

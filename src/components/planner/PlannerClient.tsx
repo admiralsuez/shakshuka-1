@@ -32,9 +32,9 @@ async function fetchTasksTauri(): Promise<Task[]> {
   try {
     const available = await isTauri();
     if (!available) return [];
-    const fileExists = await exists(TASKS_FILE, { baseDir: BaseDirectory.App });
+    const fileExists = await exists(TASKS_FILE, { baseDir: BaseDirectory.AppConfig});
     if (!fileExists) return [];
-    const text = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.App });
+    const text = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.AppConfig });
     const data = JSON.parse(text);
     return Array.isArray(data) ? (data as Task[]) : [];
   } catch {
