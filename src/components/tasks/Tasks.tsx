@@ -10,6 +10,7 @@ import { Plus, Trash2, Search } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { loadSettings, loadStrikes, saveStrikes, type StrikeEntry, formatDateInTZ } from "@/lib/local-storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -117,7 +118,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [timezone, setTimezone] = useState<string>("UTC");
   const [strikes, setStrikes] = useState<StrikeEntry[]>([]);
 
-  // search & filter
+  // search & filter - now using Sheet instead of inline
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -328,104 +329,69 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         <CardTitle className={`flex items-center justify-between text-xl`}>
           <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
           <div className="flex items-center gap-2">
-            <span className={`font-normal text-muted-foreground text-sm`}>{remaining} active</span>
-            <Button size="icon" variant="ghost" onClick={() => setShowSearch(v => !v)} aria-label="Search tasks">
-              <Search className="h-4 w-4" />
-            </Button>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-1 h-4 w-4" /> Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add a new task</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-title">Title</Label>
+                    <Input
+                      id="task-title"
+                      ref={inputRef}
+                      placeholder="Task title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-due">Due date</Label>
+                    <Input
+                      id="task-due"
+                      type="date"
+                      placeholder="YYYY-MM-DD"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="sm:w-56"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
+                    <Textarea
+                      id="task-notes"
+                      placeholder="Details, links, etc."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
+                    <Input
+                      id="task-tags"
+                      placeholder="e.g. work, urgent, home"
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
+                  <Button onClick={addTask} disabled={!title.trim()}>Add</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className={compact ? "space-y-3" : "space-y-6"}>
-        {showSearch && (
-          <div className="space-y-2">
-            <Input placeholder="Search tasks…" value={query} onChange={(e) => setQuery(e.target.value)} />
-            {allTags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {allTags.map(tag => {
-                  const active = selectedTags.includes(tag);
-                  return (
-                    <Button
-                      key={tag}
-                      size="sm"
-                      variant={active ? "default" : "outline"}
-                      onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
-                      className="h-7 rounded-full"
-                    >
-                      #{tag}
-                    </Button>
-                  );
-                })}
-                {selectedTags.length > 0 && (
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Add Task dialog trigger */}
-        <div className="flex items-center justify-end">
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="shrink-0">
-                <Plus className="mr-1 h-4 w-4" /> Add Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Add a new task</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="task-title">Title</Label>
-                  <Input
-                    id="task-title"
-                    ref={inputRef}
-                    placeholder="Task title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="task-due">Due date</Label>
-                  <Input
-                    id="task-due"
-                    type="date"
-                    placeholder="YYYY-MM-DD"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="sm:w-56"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="task-notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
-                  <Textarea
-                    id="task-notes"
-                    placeholder="Details, links, etc."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
-                  <Input
-                    id="task-tags"
-                    placeholder="e.g. work, urgent, home"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
-                <Button onClick={addTask} disabled={!title.trim()}>Add</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-
         {/* Tabs for Active / Expired / Completed */}
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
@@ -716,6 +682,58 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Search moved below tasks - opens to the right */}
+        <div className="pt-4 border-t">
+          <Sheet open={showSearch} onOpenChange={setShowSearch}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full">
+                <Search className="mr-2 h-4 w-4" />
+                Search & Filter Tasks
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-lg">
+              <SheetHeader>
+                <SheetTitle>Search & Filter</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="search-input">Search</Label>
+                  <Input 
+                    id="search-input"
+                    placeholder="Search tasks…" 
+                    value={query} 
+                    onChange={(e) => setQuery(e.target.value)} 
+                  />
+                </div>
+                {allTags.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Filter by tags</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {allTags.map(tag => {
+                        const active = selectedTags.includes(tag);
+                        return (
+                          <Button
+                            key={tag}
+                            size="sm"
+                            variant={active ? "default" : "outline"}
+                            onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                            className="h-7 rounded-full"
+                          >
+                            #{tag}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    {selectedTags.length > 0 && (
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </CardContent>
     </Card>
   );

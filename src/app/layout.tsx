@@ -19,22 +19,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased font-sans">
-        {/* Ensure theme class is set before hydration */}
-        <Script id="theme-init" strategy="beforeInteractive">{`
-          (function() {
-            try {
-              let theme = localStorage.getItem('theme');
-              if (!theme) {
-                theme = 'modern';
-                localStorage.setItem('theme', 'modern');
-              }
-              document.documentElement.classList.remove('light', 'dark', 'modern');
-              if (theme !== 'light') {
-                document.documentElement.classList.add(theme);
-              }
-            } catch (e) {}
-          })();
-        `}</Script>
         <ThemeProvider>
           <ErrorReporter />
           <Script
