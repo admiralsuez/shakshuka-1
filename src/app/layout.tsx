@@ -4,6 +4,7 @@ import "./globals.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default function RootLayout({
             </nav>
           </header>
           {children}
+          <Toaster />
           <VisualEditsMessenger />
         </ThemeProvider>
       </body>

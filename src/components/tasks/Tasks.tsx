@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, X } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -118,8 +118,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [timezone, setTimezone] = useState<string>("UTC");
   const [strikes, setStrikes] = useState<StrikeEntry[]>([]);
 
-  // search & filter - now using Sheet instead of inline
-  const [showSearch, setShowSearch] = useState(false);
+  // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -146,6 +145,34 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
     };
   }, []);
+
+  // Auto-refresh tasks at reset hour
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    
+    const checkAndRefresh = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      // Check if we're at the reset hour (within the first minute)
+      if (currentHour === resetHour && currentMinute === 0) {
+        // Reload tasks and strikes
+        (async () => {
+          const [existingStrikes, data] = await Promise.all([
+            loadStrikes(),
+            useTauriRef.current ? fetchTasksTauri() : fetchTasksAPI(),
+          ]);
+          setStrikes(existingStrikes);
+          setTasks(data);
+        })();
+      }
+    };
+    
+    // Check every minute
+    const intervalId = setInterval(checkAndRefresh, 60000);
+    return () => clearInterval(intervalId);
+  }, [resetHour]);
 
   // Persist on change
   useEffect(() => {
@@ -264,8 +291,6 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const removeTask = (id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
   };
-
-  // remove bulk actions per request
 
   // searchable tag list
   const allTags = useMemo(() => {
@@ -392,6 +417,55 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className={compact ? "space-y-3" : "space-y-6"}>
+        {/* Search moved above tabs - inline */}
+        <div className="space-y-3 pb-4 border-b">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search tasks…" 
+                value={query} 
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9"
+              />
+              {query && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setQuery("")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          {allTags.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Filter by tags:</Label>
+              <div className="flex flex-wrap gap-2">
+                {allTags.map(tag => {
+                  const active = selectedTags.includes(tag);
+                  return (
+                    <Button
+                      key={tag}
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                      className="h-7 rounded-full"
+                    >
+                      #{tag}
+                    </Button>
+                  );
+                })}
+              </div>
+              {selectedTags.length > 0 && (
+                <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Tabs for Active / Expired / Completed */}
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
@@ -402,7 +476,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
 
           <TabsContent value="active" className="mt-2">
             {compact ? (
-              // Compact view: Smaller cards in grid - SAME font sizes
+              // Compact view: Smaller cards in grid
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {activeFiltered.length === 0 && (
                   <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
@@ -431,7 +505,15 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                         <div className="flex items-center gap-1 pt-1">
                           <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className="flex-1">Strike</Button>
+                              <Button 
+                                size="sm" 
+                                variant={struck ? "ghost" : "secondary"} 
+                                onClick={() => setStrikeTaskId(t.id)} 
+                                className="flex-1"
+                                disabled={struck}
+                              >
+                                Strike
+                              </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                               <DialogHeader>
@@ -488,7 +570,14 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                           <div className="flex items-center gap-1">
                             <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                               <DialogTrigger asChild>
-                                <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)}>Strike</Button>
+                                <Button 
+                                  size="sm" 
+                                  variant={struck ? "ghost" : "secondary"} 
+                                  onClick={() => setStrikeTaskId(t.id)}
+                                  disabled={struck}
+                                >
+                                  Strike
+                                </Button>
                               </DialogTrigger>
                               <DialogContent className="sm:max-w-md">
                                 <DialogHeader>
@@ -519,88 +608,47 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
 
           <TabsContent value="expired" className="mt-2">
             {compact ? (
-              // Compact view: Smaller cards in grid - SAME font sizes
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {expiredFiltered.length === 0 && (
                   <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
                 )}
-                {expiredFiltered.map((t) => (
-                  <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium line-clamp-2 text-destructive">{t.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Due: {t.dueDate ?? `${t.dueHour}:00`}
-                      </p>
-                      {t.tags && t.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {t.tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                          ))}
-                          {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 pt-1">
-                        <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)} className="flex-1">Strike</Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>Strike "{t.title}"</DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-2">
-                              <Label htmlFor={`strike-note-exp-${t.id}`}>Add note (optional)</Label>
-                              <Textarea id={`strike-note-exp-${t.id}`} value={strikeNote} onChange={(e) => setStrikeNote(e.target.value)} rows={3} placeholder="What did you do?" />
-                            </div>
-                            <DialogFooter className="gap-2 sm:gap-0">
-                              <Button variant="secondary" onClick={() => onStrikeToday(t.id)}>Strike for today</Button>
-                              <Button onClick={() => onMarkCompleted(t.id)}>Mark as completed</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              // Relaxed view: List items
-              <ul className="divide-y divide-border rounded-md border">
-                {expiredFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
-                )}
-                {expiredFiltered.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 p-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm sm:text-base text-destructive">{t.title} <span className="ml-2 text-muted-foreground text-xs">(due {t.dueDate ?? `${t.dueHour}:00`})</span></p>
-                          {t.notes && (
-                            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
-                          )}
-                          {t.tags && t.tags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {t.tags.map(tag => (
-                                <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
+                {expiredFiltered.map((t) => {
+                  const struck = struckTodayIds.has(t.id);
+                  return (
+                    <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                      <div className="space-y-2">
+                        <p className={`text-sm font-medium line-clamp-2 ${struck ? "line-through text-muted-foreground" : "text-destructive"}`}>{t.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Due: {t.dueDate ?? `${t.dueHour}:00`}
+                        </p>
+                        {t.tags && t.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {t.tags.slice(0, 2).map(tag => (
+                              <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                            ))}
+                            {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 pt-1">
                           <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="secondary" onClick={() => setStrikeTaskId(t.id)}>Strike</Button>
+                              <Button 
+                                size="sm" 
+                                variant={struck ? "ghost" : "secondary"} 
+                                onClick={() => setStrikeTaskId(t.id)} 
+                                className="flex-1"
+                                disabled={struck}
+                              >
+                                Strike
+                              </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                               <DialogHeader>
                                 <DialogTitle>Strike "{t.title}"</DialogTitle>
                               </DialogHeader>
                               <div className="grid gap-2">
-                                <Label htmlFor={`strike-note-exp-relax-${t.id}`}>Add note (optional)</Label>
-                                <Textarea id={`strike-note-exp-relax-${t.id}`} value={strikeNote} onChange={(e) => setStrikeNote(e.target.value)} rows={3} placeholder="What did you do?" />
+                                <Label htmlFor={`strike-note-exp-${t.id}`}>Add note (optional)</Label>
+                                <Textarea id={`strike-note-exp-${t.id}`} value={strikeNote} onChange={(e) => setStrikeNote(e.target.value)} rows={3} placeholder="What did you do?" />
                               </div>
                               <DialogFooter className="gap-2 sm:gap-0">
                                 <Button variant="secondary" onClick={() => onStrikeToday(t.id)}>Strike for today</Button>
@@ -614,15 +662,74 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                         </div>
                       </div>
                     </div>
-                  </li>
-                ))}
+                  );
+                })}
+              </div>
+            ) : (
+              <ul className="divide-y divide-border rounded-md border">
+                {expiredFiltered.length === 0 && (
+                  <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
+                )}
+                {expiredFiltered.map((t) => {
+                  const struck = struckTodayIds.has(t.id);
+                  return (
+                    <li key={t.id} className="flex items-start gap-3 p-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className={`text-sm sm:text-base ${struck ? "line-through text-muted-foreground" : "text-destructive"}`}>{t.title} <span className="ml-2 text-muted-foreground text-xs">(due {t.dueDate ?? `${t.dueHour}:00`})</span></p>
+                            {t.notes && (
+                              <p className={`mt-1 text-xs sm:text-sm ${struck ? "line-through" : ""} text-muted-foreground`}>{t.notes}</p>
+                            )}
+                            {t.tags && t.tags.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {t.tags.map(tag => (
+                                  <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  size="sm" 
+                                  variant={struck ? "ghost" : "secondary"} 
+                                  onClick={() => setStrikeTaskId(t.id)}
+                                  disabled={struck}
+                                >
+                                  Strike
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle>Strike "{t.title}"</DialogTitle>
+                                </DialogHeader>
+                                <div className="grid gap-2">
+                                  <Label htmlFor={`strike-note-exp-relax-${t.id}`}>Add note (optional)</Label>
+                                  <Textarea id={`strike-note-exp-relax-${t.id}`} value={strikeNote} onChange={(e) => setStrikeNote(e.target.value)} rows={3} placeholder="What did you do?" />
+                                </div>
+                                <DialogFooter className="gap-2 sm:gap-0">
+                                  <Button variant="secondary" onClick={() => onStrikeToday(t.id)}>Strike for today</Button>
+                                  <Button onClick={() => onMarkCompleted(t.id)}>Mark as completed</Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                            <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </TabsContent>
 
           <TabsContent value="completed" className="mt-2">
             {compact ? (
-              // Compact view: Smaller cards in grid - SAME font sizes
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {completedFiltered.length === 0 && (
                   <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
@@ -649,7 +756,6 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                 ))}
               </div>
             ) : (
-              // Relaxed view: List items
               <ul className="divide-y divide-border rounded-md border">
                 {completedFiltered.length === 0 && (
                   <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
@@ -682,58 +788,6 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             )}
           </TabsContent>
         </Tabs>
-
-        {/* Search moved below tasks - opens to the right */}
-        <div className="pt-4 border-t">
-          <Sheet open={showSearch} onOpenChange={setShowSearch}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full">
-                <Search className="mr-2 h-4 w-4" />
-                Search & Filter Tasks
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-lg">
-              <SheetHeader>
-                <SheetTitle>Search & Filter</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="search-input">Search</Label>
-                  <Input 
-                    id="search-input"
-                    placeholder="Search tasks…" 
-                    value={query} 
-                    onChange={(e) => setQuery(e.target.value)} 
-                  />
-                </div>
-                {allTags.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Filter by tags</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {allTags.map(tag => {
-                        const active = selectedTags.includes(tag);
-                        return (
-                          <Button
-                            key={tag}
-                            size="sm"
-                            variant={active ? "default" : "outline"}
-                            onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
-                            className="h-7 rounded-full"
-                          >
-                            #{tag}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                    {selectedTags.length > 0 && (
-                      <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
       </CardContent>
     </Card>
   );

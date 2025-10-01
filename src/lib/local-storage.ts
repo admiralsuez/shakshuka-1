@@ -61,10 +61,15 @@ const SETTINGS_KEY = "settings.json";
 export type AppSettings = {
   resetHour: number; // 0-23
   timezone: string; // IANA
+  buttonColor?: string; // hex color for buttons
 };
 
 export async function loadSettings(): Promise<AppSettings> {
-  return readJSON<AppSettings>(SETTINGS_KEY, { resetHour: 9, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" });
+  return readJSON<AppSettings>(SETTINGS_KEY, { 
+    resetHour: 9, 
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    buttonColor: "#007AFF" // iOS blue default
+  });
 }
 
 export async function saveSettings(s: AppSettings) {
