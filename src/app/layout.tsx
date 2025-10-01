@@ -19,10 +19,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased font-sans">
-        {/* Ensure theme class is set before hydration to avoid flicker/mismatch */}
-        <Script id="theme-init" strategy="beforeInteractive">{
-          `(()=>{try{let s=localStorage.getItem('theme');if(!s){s='modern';localStorage.setItem('theme','modern');}const cls=document.documentElement.classList;cls.remove('dark','modern');if(s==='dark'){cls.add('dark');}else if(s==='modern'){cls.add('modern');}}catch(e){}})();`}
-        </Script>
+        {/* Ensure theme class is set before hydration */}
+        <Script id="theme-init" strategy="beforeInteractive">{`
+          (function() {
+            try {
+              let theme = localStorage.getItem('theme');
+              if (!theme) {
+                theme = 'modern';
+                localStorage.setItem('theme', 'modern');
+              }
+              document.documentElement.classList.remove('light', 'dark', 'modern');
+              if (theme !== 'light') {
+                document.documentElement.classList.add(theme);
+              }
+            } catch (e) {}
+          })();
+        `}</Script>
         <ThemeProvider>
           <ErrorReporter />
           <Script

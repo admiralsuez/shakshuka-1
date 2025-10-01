@@ -12,44 +12,28 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Read initial theme from document class (already set by inline script)
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "modern";
-    
-    const cls = document.documentElement.classList;
-    if (cls.contains("dark")) return "dark";
-    if (cls.contains("modern")) return "modern";
-    return "light";
-  });
+  const [theme, setThemeState] = useState<Theme>("modern");
+  const [mounted, setMounted] = useState(false);
 
-  const setTheme = (newTheme: Theme) => {
-    try {
-      // Update localStorage
-      localStorage.setItem("theme", newTheme);
-      
-      // Update document classes
-      const cls = document.documentElement.classList;
-      cls.remove("dark", "modern", "light");
-      if (newTheme !== "light") {
-        cls.add(newTheme);
-      }
-      
-      // Update state
-      setThemeState(newTheme);
-    } catch (e) {
-      console.error("Failed to set theme:", e);
-    }
-  };
-
-  // Sync with localStorage changes (e.g., from other tabs)
   useEffect(() => {
+    // Read theme from localStorage and document class after mount
+    const storedTheme = localStorage.getItem("theme") as Theme | null;
+    const initialTheme = storedTheme || "modern";
+    
+    if (!storedTheme) {
+      localStorage.setItem("theme", "modern");
+    }
+    
+    setThemeState(initialTheme);
+    setMounted(true);
+
+    // Sync with localStorage changes (e.g., from other tabs)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "theme" && e.newValue) {
         const newTheme = e.newValue as Theme;
-        const cls = document.documentElement.classList;
-        cls.remove("dark", "modern", "light");
+        document.documentElement.classList.remove("light", "dark", "modern");
         if (newTheme !== "light") {
-          cls.add(newTheme);
+          document.documentElement.classList.add(newTheme);
         }
         setThemeState(newTheme);
       }
@@ -58,6 +42,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
+
+  const setTheme = (newTheme: Theme) => {
+    try {
+      localStorage.setItem("theme", newTheme);
+      
+      const cls = document.documentElement.classList;
+      cls.remove("light", "dark", "modern");
+      if (newTheme !== "light") {
+        cls.add(newTheme);
+      }
+      
+      setThemeState(newTheme);
+    } catch (e) {
+      console.error("Failed to set theme:", e);
+    }
+  };
+
+  // Prevent flash by not rendering until mounted
+  if (!mounted) {
+    return <>{children}</>;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>

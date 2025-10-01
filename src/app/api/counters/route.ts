@@ -2,21 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { monthlyStats, tasks, strikes, settings } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getCurrentUser(request);
-    if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-
-    // Get user's timezone and reset hour from settings
-    const userSettings = await db.select()
-      .from(settings)
-      .where(eq(settings.userId, user.id))
-      .limit(1);
-
-    const timezone = userSettings[0]?.timezone || 'UTC';
-    const resetHour = userSettings[0]?.resetHour || 9;
+    // Since auth is not set up, use default timezone/resetHour
+    // In future, this would come from user settings after auth is implemented
+    const timezone = 'UTC';
+    const resetHour = 9;
 
     // Calculate current month based on timezone and reset hour
     const now = new Date();
