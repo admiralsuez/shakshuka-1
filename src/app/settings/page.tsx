@@ -15,20 +15,56 @@ export default function SettingsPage() {
     buttonColor: "#007AFF"
   });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const s = await loadSettings();
-      setSettings(s);
-    })();
+    let mounted = true;
+    
+    const loadData = async () => {
+      try {
+        const s = await loadSettings();
+        if (mounted) {
+          setSettings(s);
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        toast.error("Failed to load settings");
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const onSave = async () => {
     setSaving(true);
-    await saveSettings(settings);
-    setSaving(false);
-    toast.success("Settings saved successfully!");
+    try {
+      await saveSettings(settings);
+      toast.success("Settings saved successfully!");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="mx-auto w-full max-w-3xl p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Loading settings...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
@@ -63,9 +99,6 @@ export default function SettingsPage() {
               Used to determine day boundaries and 9am (or your custom) reset.
             </p>
           </div>
-          <div className="pt-2">
-            <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -96,11 +129,14 @@ export default function SettingsPage() {
               Choose a custom color for buttons throughout the app.
             </p>
           </div>
-          <div className="pt-2">
-            <Button onClick={onSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-          </div>
         </CardContent>
       </Card>
+
+      <div className="pt-2">
+        <Button onClick={onSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Settings"}
+        </Button>
+      </div>
     </div>
   );
 }
