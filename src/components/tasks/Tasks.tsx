@@ -43,9 +43,9 @@ async function fetchTasksTauri(): Promise<Task[]> {
   try {
     const available = await isTauri();
     if (!available) return [];
-    const fileExists = await exists(TASKS_FILE, { baseDir: BaseDirectory.App });
+    const fileExists = await exists(TASKS_FILE, { baseDir: BaseDirectory.AppData });
     if (!fileExists) return [];
-    const text = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.App });
+    const text = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.AppData });
     const data = JSON.parse(text);
     return Array.isArray(data) ? (data as Task[]) : [];
   } catch {
@@ -58,9 +58,9 @@ async function saveTasksTauri(tasks: Task[]): Promise<void> {
     const available = await isTauri();
     if (!available) return;
     // Ensure base directory exists (noop if already present)
-    await mkdir(".", { baseDir: BaseDirectory.App, recursive: true });
+    await mkdir(".", { baseDir: BaseDirectory.AppData, recursive: true });
     await writeTextFile(TASKS_FILE, JSON.stringify(tasks, null, 2), {
-      baseDir: BaseDirectory.App,
+      baseDir: BaseDirectory.AppData,
     });
   } catch {
     // ignore
