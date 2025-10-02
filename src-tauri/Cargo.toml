@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
  # Tauri v2 core
- tauri = { version = "2", features = ["wry", "macos-private-api"] }
+ tauri = { version = "2", features = ["wry"] }
  # Autostart plugin v2
  tauri-plugin-autostart = "2"
  # Filesystem plugin v2
