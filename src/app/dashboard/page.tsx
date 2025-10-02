@@ -12,30 +12,55 @@ export default function DashboardPage() {
   return (
     <div className="relative mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden">
       {/* decorative gradients */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,theme(colors.chart-1)/25%,transparent)] blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,theme(colors.chart-4)/20%,transparent)] blur-2xl" />
+      <div 
+        className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-2xl" 
+        style={{
+          background: 'radial-gradient(closest-side, oklch(0.66 0.2 250 / 0.25), transparent)'
+        }}
+      />
+      <div 
+        className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full blur-2xl" 
+        style={{
+          background: 'radial-gradient(closest-side, oklch(0.72 0.15 160 / 0.20), transparent)'
+        }}
+      />
 
       <div className="flex items-start justify-between gap-4 animate-in fade-in-50">
         <div className="space-y-1 flex-1">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-[var(--chart-1)] via-[var(--chart-4)] to-[var(--chart-2)] bg-clip-text text-transparent">
-            Dashboard
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">
+            <span style={{
+              background: 'linear-gradient(to right, oklch(0.66 0.2 250), oklch(0.72 0.15 160), oklch(0.8 0.2 140))',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent'
+            }}>
+              Dashboard
+            </span>
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your daily strikes, monitor progress, and manage tasks.</p>
         </div>
       </div>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-1)]/10 via-[var(--chart-3)]/10 to-[var(--chart-2)]/10 p-4 md:p-6">
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6"
+        style={{
+          background: 'linear-gradient(to bottom right, oklch(0.66 0.2 250 / 0.1), oklch(0.7 0.11 35 / 0.1), oklch(0.8 0.2 140 / 0.1))'
+        }}
+      >
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--chart-1)]" />
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.66 0.2 250)' }} />
           Quick stats
         </h2>
         <Counters />
       </section>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 bg-gradient-to-br from-[var(--chart-5)]/10 via-[var(--chart-4)]/10 to-[var(--chart-3)]/10 p-4 md:p-6">
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6"
+        style={{
+          background: 'linear-gradient(to bottom right, oklch(0.74 0.2 310 / 0.1), oklch(0.72 0.15 160 / 0.1), oklch(0.7 0.11 35 / 0.1))'
+        }}
+      >
         <div className="flex items-center justify-between gap-4 mb-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[var(--chart-5)]" />
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.74 0.2 310)' }} />
             Your tasks
           </h2>
           
