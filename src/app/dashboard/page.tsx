@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
 
   return (
-    <div className="relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden !w-[63%] !h-[750px] !max-w-[63%]">
+    <div className="relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden !w-[63%] !h-[736px] !max-w-[63%]">
       {/* decorative gradients */}
       <div
         className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-2xl"
@@ -53,7 +53,7 @@ export default function DashboardPage() {
         <Counters />
       </section>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6 !w-[847px] !h-[387px]"
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6 !w-[99.6%] !h-[387px]"
       style={{
         background: 'linear-gradient(to bottom right, oklch(0.74 0.2 310 / 0.1), oklch(0.72 0.15 160 / 0.1), oklch(0.7 0.11 35 / 0.1))'
       }}>
