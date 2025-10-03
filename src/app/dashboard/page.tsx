@@ -138,10 +138,7 @@ export default function DashboardPage() {
         }}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
-          <h2 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-            <span className="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.74 0.2 310)' }} />
-            Your tasks
-          </h2>
+          {showPomodoro && <PomodoroTimer mini />}
           
           {/* View Toggle */}
           <div className="flex items-center gap-1 rounded-md border bg-card p-1">
