@@ -35,7 +35,7 @@ export default function RootLayout({
           {/* Simple top navigation */}
           <header className="w-full border-b">
             <nav className="mx-auto max-w-5xl px-4 sm:px-6 py-3 flex items-center gap-4 text-sm">
-              <Link href="/" className="font-semibold">Shakshuka</Link>
+              <Link href="/dashboard" className="font-semibold">Shakshuka</Link>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Link href="/dashboard" className="hover:text-foreground">Dashboard</Link>
                 <Link href="/planner" className="hover:text-foreground">Planner</Link>
