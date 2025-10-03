@@ -47,7 +47,7 @@ export const monthlyStats = sqliteTable('monthly_stats', {
   updatedAt: integer('updated_at').notNull(),
 });
 
-export const userTasks = sqliteTable('user_tasks', {
+export const userTasks = sqliteTable('user_tasks_v2', {
   id: text('id').primaryKey(),
   revision: integer('revision').notNull().default(1),
   title: text('title').notNull(),
@@ -58,6 +58,7 @@ export const userTasks = sqliteTable('user_tasks', {
   dueHour: integer('due_hour'),
   dueDate: text('due_date'),
   tags: text('tags'),
+  userId: integer('user_id').notNull().references(() => users.id),
 });
 
 export const taskItems = sqliteTable('task_items', {
@@ -97,4 +98,18 @@ export const tasks = sqliteTable('tasks', {
   dueHour: integer('due_hour'),
   dueDate: text('due_date'),
   tags: text('tags'),
+});
+
+export const userIsolatedTasks = sqliteTable('user_isolated_tasks', {
+  id: text('id').primaryKey(),
+  revision: integer('revision').notNull().default(1),
+  title: text('title').notNull(),
+  notes: text('notes'),
+  completed: integer('completed').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  dueHour: integer('due_hour'),
+  dueDate: text('due_date'),
+  tags: text('tags'),
+  userId: integer('user_id').notNull().references(() => users.id),
 });

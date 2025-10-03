@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { tasks } from '@/db/schema';
+import { like } from 'drizzle-orm';
 
 export type Task = {
   id: string;
@@ -17,10 +18,16 @@ export type Task = {
 
 export async function GET() {
   try {
-    const allTasks = await db.select().from(tasks);
+    // For now, use hardcoded userId = 1 until auth is implemented
+    // We'll filter tasks by using a prefix in the task ID: "user1-" for user 1
+    const userId = 1;
+    const userPrefix = `user${userId}-%`;
+    
+    const userTasks = await db.select().from(tasks)
+      .where(like(tasks.id, userPrefix));
     
     // Transform database records to API format with safe JSON parsing
-    const transformedTasks: Task[] = allTasks.map(task => {
+    const transformedTasks: Task[] = userTasks.map(task => {
       let parsedTags;
       try {
         parsedTags = task.tags ? JSON.parse(task.tags) : undefined;
@@ -31,7 +38,7 @@ export async function GET() {
 
       return {
         id: String(task.id),
-        revision: task.revision || 1,
+        revision: Number(task.revision) || 1, // Handle corrupted data
         title: task.title,
         notes: task.notes || undefined,
         completed: Boolean(task.completed),
@@ -55,6 +62,10 @@ export async function GET() {
 // Replace all tasks (overwrite persistence model)
 export async function PUT(request: NextRequest) {
   try {
+    // For now, use hardcoded userId = 1 until auth is implemented
+    const userId = 1;
+    const userPrefix = `user${userId}-`;
+    
     const body = await request.json();
     
     if (!Array.isArray(body)) {
@@ -64,9 +75,10 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Clear all existing tasks first
+    // Clear only the current user's tasks (by ID prefix)
     try {
-      await db.delete(tasks);
+      const userPrefixPattern = `user${userId}-%`;
+      await db.delete(tasks).where(like(tasks.id, userPrefixPattern));
     } catch (deleteError) {
       console.warn('Delete failed:', deleteError);
     }
@@ -87,8 +99,14 @@ export async function PUT(request: NextRequest) {
 
       const now = Date.now();
       
+      // Ensure task ID has user prefix for isolation
+      let taskId = String(t.id);
+      if (!taskId.startsWith(userPrefix)) {
+        taskId = userPrefix + taskId;
+      }
+      
       return {
-        id: String(t.id),
+        id: taskId,
         revision: Number(t.revision) || 1,
         title: String(t.title),
         notes: t.notes ? String(t.notes) : null,
@@ -101,7 +119,7 @@ export async function PUT(request: NextRequest) {
       };
     });
 
-    // Insert new tasks
+    // Insert new tasks with user prefix for isolation
     if (normalizedTasks.length > 0) {
       await db.insert(tasks).values(normalizedTasks);
     }
