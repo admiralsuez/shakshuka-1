@@ -916,7 +916,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
             <Label htmlFor={`strike-note-${t.id}`}>Add note (optional)</Label>
             <Textarea id={`strike-note-${t.id}`} value={strikeNote} onChange={(e) => setStrikeNote(e.target.value)} rows={3} placeholder="What did you do?" />
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button 
               variant="secondary" 
               onClick={() => onStrikeToday(t.id)}
