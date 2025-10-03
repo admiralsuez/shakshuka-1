@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
 
   return (
-    <div className="relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden !w-[63%] !h-[736px] !max-w-[63%]">
+    <div className="relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden !w-[63%] !h-[690px] !max-w-[63%]">
       {/* decorative gradients */}
       <div
         className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-2xl"
