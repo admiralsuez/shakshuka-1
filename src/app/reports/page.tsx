@@ -23,9 +23,9 @@ const TASKS_FILE = "tasks.json";
 async function loadTasks(): Promise<Task[]> {
   try {
     if (await isTauri()) {
-      const ok = await exists(TASKS_FILE, { baseDir: BaseDirectory.AppConfig });
+      const ok = await exists(TASKS_FILE, { baseDir: BaseDirectory.App });
       if (!ok) return [];
-      const txt = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.AppConfig });
+      const txt = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.App });
       const data = JSON.parse(txt);
       return Array.isArray(data) ? (data as Task[]) : [];
     }
@@ -99,97 +99,117 @@ export default function ReportsPage() {
   }, [tasks, timezone, monthKey]);
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Reports</h1>
+    <div className="w-full min-h-screen">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-5xl space-y-4 sm:space-y-6">
+        <h1 className="text-xl sm:text-2xl font-semibold">Reports</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Striked (month)</div>
-            <Badge variant="secondary" className="text-base">{monthStrikes}</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Completed (month)</div>
-            <Badge variant="secondary" className="text-base">{monthCompleted}</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Expired (month)</div>
-            <Badge variant="secondary" className="text-base">{monthExpired}</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Tasks added (month)</div>
-            <Badge variant="secondary" className="text-base">{tasksAddedThisMonth}</Badge>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Striked (month)</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{monthStrikes}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Completed (month)</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{monthCompleted}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Expired (month)</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{monthExpired}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Tasks added (month)</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{tasksAddedThisMonth}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Total tasks</div>
-            <Badge variant="secondary" className="text-base">{totalTasksAdded}</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Total strikes</div>
-            <Badge variant="secondary" className="text-base">{totalStrikes}</Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Total completed</div>
-            <Badge variant="secondary" className="text-base">{totalCompleted}</Badge>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Total tasks</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{totalTasksAdded}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Total strikes</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{totalStrikes}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground">Total completed</div>
+                <Badge variant="secondary" className="text-sm sm:text-base w-fit">{totalCompleted}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Daily detail</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 max-w-xs">
-            <Label htmlFor="date">Date</Label>
-            <Input id="date" type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} />
-          </div>
-          <div className="rounded-md border">
-            <div className="grid grid-cols-4 px-3 py-2 text-xs text-muted-foreground border-b">
-              <div>Time</div>
-              <div>Task</div>
-              <div>Action</div>
-              <div>Note</div>
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Daily detail</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+            <div className="grid gap-2 w-full sm:max-w-xs">
+              <Label htmlFor="date" className="text-sm">Date</Label>
+              <Input id="date" type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full" />
             </div>
-            <ScrollArea className="max-h-[360px]">
-              {dayEntries.length === 0 ? (
-                <div className="px-3 py-3 text-sm text-muted-foreground">No entries for this date.</div>
-              ) : (
-                <ul>
-                  {dayEntries
-                    .sort((a, b) => a.ts - b.ts)
-                    .map((e, idx) => {
-                      const time = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(e.ts));
-                      return (
-                        <li key={idx} className="grid grid-cols-4 px-3 py-2 text-sm border-b last:border-b-0">
-                          <div className="tabular-nums">{time}</div>
-                          <div className="truncate">{e.taskId}</div>
-                          <div className="capitalize">{e.action || "strike"}</div>
-                          <div className="truncate text-muted-foreground">{e.note || "-"}</div>
-                        </li>
-                      );
-                    })}
-                </ul>
-              )}
-            </ScrollArea>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="rounded-md border overflow-hidden">
+              <div className="overflow-x-auto">
+                <div className="min-w-[600px]">
+                  <div className="grid grid-cols-4 px-3 py-2 text-xs text-muted-foreground border-b bg-muted/50">
+                    <div>Time</div>
+                    <div>Task</div>
+                    <div>Action</div>
+                    <div>Note</div>
+                  </div>
+                  <ScrollArea className="max-h-[360px]">
+                    {dayEntries.length === 0 ? (
+                      <div className="px-3 py-3 text-sm text-muted-foreground">No entries for this date.</div>
+                    ) : (
+                      <ul>
+                        {dayEntries
+                          .sort((a, b) => a.ts - b.ts)
+                          .map((e, idx) => {
+                            const time = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(e.ts));
+                            return (
+                              <li key={idx} className="grid grid-cols-4 px-3 py-2 text-sm border-b last:border-b-0">
+                                <div className="tabular-nums">{time}</div>
+                                <div className="truncate">{e.taskId}</div>
+                                <div className="capitalize">{e.action || "strike"}</div>
+                                <div className="truncate text-muted-foreground">{e.note || "-"}</div>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    )}
+                  </ScrollArea>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
