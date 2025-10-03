@@ -1,16 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Counters } from "@/components/widgets/Counters";
 import { Tasks } from "@/components/tasks/Tasks";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";
 
+const quirkyNicknames = [
+  "Task Master",
+  "Productivity Ninja",
+  "Strike Champion",
+  "Goal Crusher",
+  "Daily Dynamo",
+  "Achievement Hunter",
+  "Progress Warrior",
+  "Focus Wizard",
+  "Victory Seeker",
+  "Success Samurai"
+];
+
 export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
+  const [greeting, setGreeting] = useState("Dashboard");
+
+  useEffect(() => {
+    const userName = localStorage.getItem("userName");
+    
+    if (userName) {
+      // Use custom name with time-based greeting
+      const hour = new Date().getHours();
+      let timeGreeting = "Good evening";
+      if (hour < 12) timeGreeting = "Good morning";
+      else if (hour < 18) timeGreeting = "Good afternoon";
+      
+      setGreeting(`${timeGreeting}, ${userName}!`);
+    } else {
+      // Use random quirky nickname
+      const randomIndex = Math.floor(Math.random() * quirkyNicknames.length);
+      const nickname = quirkyNicknames[randomIndex];
+      setGreeting(`Hey there, ${nickname}!`);
+    }
+  }, []);
 
   return (
-    <div className="relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden !w-[63%] !h-[690px] !max-w-[63%]">
+    <div className="container relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl">
       {/* decorative gradients */}
       <div
         className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-2xl"
@@ -24,7 +57,6 @@ export default function DashboardPage() {
           background: 'radial-gradient(closest-side, oklch(0.72 0.15 160 / 0.20), transparent)'
         }} />
 
-
       <div className="flex items-start justify-between gap-4 animate-in fade-in-50">
         <div className="space-y-1 flex-1">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">
@@ -34,18 +66,17 @@ export default function DashboardPage() {
               backgroundClip: 'text',
               color: 'transparent'
             }}>
-              Dashboard
+              {greeting}
             </span>
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your daily strikes, monitor progress, and manage tasks.</p>
         </div>
       </div>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6 !w-[822px] !h-[199px]"
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6"
       style={{
         background: 'linear-gradient(to bottom right, oklch(0.66 0.2 250 / 0.1), oklch(0.7 0.11 35 / 0.1), oklch(0.8 0.2 140 / 0.1))'
       }}>
-
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.66 0.2 250)' }} />
           Quick stats
@@ -53,11 +84,10 @@ export default function DashboardPage() {
         <Counters />
       </section>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6 !w-[99.6%] !h-[387px]"
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6"
       style={{
         background: 'linear-gradient(to bottom right, oklch(0.74 0.2 310 / 0.1), oklch(0.72 0.15 160 / 0.1), oklch(0.7 0.11 35 / 0.1))'
       }}>
-
         <div className="flex items-center justify-between gap-4 mb-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.74 0.2 310)' }} />
@@ -72,7 +102,6 @@ export default function DashboardPage() {
               onClick={() => setViewMode("relaxed")}
               className="h-8 w-8 p-0"
               aria-label="Relaxed view">
-
               <LayoutList className="h-4 w-4" />
             </Button>
             <Button
@@ -81,13 +110,12 @@ export default function DashboardPage() {
               onClick={() => setViewMode("compact")}
               className="h-8 w-8 p-0"
               aria-label="Compact view">
-
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </div>
         </div>
         <Tasks compact={viewMode === "compact"} />
       </section>
-    </div>);
-
+    </div>
+  );
 }

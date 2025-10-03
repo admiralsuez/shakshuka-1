@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Search, X, Edit, Eye, History, Undo } from "lucide-react";
+import { Plus, Trash2, Search, X, Edit, Eye, History, Undo, Download, Upload } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import { loadSettings, loadStrikes, saveStrikes, type StrikeEntry, formatDateInT
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { getRandomCompletionMessage } from "@/lib/completion-messages";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export type Task = {
   id: string; // UUID
@@ -111,6 +112,57 @@ async function saveTasksAPI(tasks: Task[]): Promise<void> {
   }).catch(() => {});
 }
 
+// Helper to sanitize HTML and validate input
+function sanitizeInput(input: string): string {
+  // Strip HTML tags
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
+function validateTaskTitle(title: string): { valid: boolean; error?: string } {
+  const sanitized = sanitizeInput(title);
+  if (sanitized.length === 0) {
+    return { valid: false, error: "Task title cannot be empty" };
+  }
+  if (sanitized.length > 200) {
+    return { valid: false, error: "Task title must be 200 characters or less" };
+  }
+  return { valid: true };
+}
+
+// Helper to record task update
+const recordUpdate = async (oldTask: Task, newTask: Task) => {
+  const diff = calculateDiff(oldTask, newTask);
+  if (Object.keys(diff).length === 0) return; // No changes
+
+  const update: TaskUpdate = {
+    updateId: generateUUID(),
+    taskId: newTask.id,
+    timestamp: Date.now(),
+    diff,
+    fullSnapshot: newTask
+  };
+
+  const newUpdates = [...updates, update];
+  setUpdates(newUpdates);
+  await saveUpdates(newUpdates);
+};
+
+// Helper to calculate diff between two task states
+const calculateDiff = (oldTask: Task, newTask: Task): Record<string, {old: any;new: any;}> => {
+  const diff: Record<string, {old: any;new: any;}> = {};
+  const keys = new Set([...Object.keys(oldTask), ...Object.keys(newTask)]);
+
+  for (const key of keys) {
+    const oldVal = (oldTask as any)[key];
+    const newVal = (newTask as any)[key];
+    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+      diff[key] = { old: oldVal, new: newVal };
+    }
+  }
+
+  return diff;
+};
+
 export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
@@ -164,9 +216,27 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
     expired: number;
   } | null>(null);
 
-  // search & filter - now inline above tabs
+  // Add first-time setup dialog state
+  const [showSetupDialog, setShowSetupDialog] = useState(false);
+  const [setupName, setSetupName] = useState("");
+  const [setupResetHour, setSetupResetHour] = useState(9);
+  const [setupColor, setSetupColor] = useState("#007AFF");
+
+  // search & filter state
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Add keyboard shortcuts
+  useKeyboardShortcuts(
+    () => setAddOpen(true), // N - New Task
+    undefined // P - Planner (handled by router)
+  );
+
+  // Add keyboard shortcuts
+  useKeyboardShortcuts(
+    () => setAddOpen(true), // N - New Task
+    undefined // P - Planner (handled by router)
+  );
 
   // Load once - add used messages loading
   useEffect(() => {
@@ -175,12 +245,12 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
       const tauri = await isTauri();
       useTauriRef.current = tauri;
       const [settings, existingStrikes, existingUpdates, existingUsedMessages, data] = await Promise.all([
-      loadSettings(),
-      loadStrikes(),
-      loadUpdates(),
-      loadUsedMessages(),
-      tauri ? fetchTasksTauri() : fetchTasksAPI()]
-      );
+        loadSettings(),
+        loadStrikes(),
+        loadUpdates(),
+        loadUsedMessages(),
+        tauri ? fetchTasksTauri() : fetchTasksAPI()
+      ]);
       if (!mounted) return;
       setResetHour(settings.resetHour);
       setTimezone(settings.timezone);
@@ -189,6 +259,13 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
       setUsedMessageIds(existingUsedMessages);
       setTasks(data);
       hasLoadedRef.current = true;
+
+      // Check if first time setup is needed
+      const hasCompletedSetup = localStorage.getItem("hasCompletedSetup");
+      if (!hasCompletedSetup) {
+        setSetupResetHour(settings.resetHour);
+        setShowSetupDialog(true);
+      }
 
       // Check if we should show daily recap
       const lastRecapDate = localStorage.getItem("lastRecapDate");
@@ -243,9 +320,9 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
         // Reload tasks and strikes
         (async () => {
           const [existingStrikes, data] = await Promise.all([
-          loadStrikes(),
-          useTauriRef.current ? fetchTasksTauri() : fetchTasksAPI()]
-          );
+            loadStrikes(),
+            useTauriRef.current ? fetchTasksTauri() : fetchTasksAPI()
+          ]);
           setStrikes(existingStrikes);
           setTasks(data);
 
@@ -278,6 +355,30 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
     const intervalId = setInterval(checkAndRefresh, 60000);
     return () => clearInterval(intervalId);
   }, [resetHour, timezone]);
+
+  // Auto-backup weekly
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+
+    const checkAndBackup = async () => {
+      const lastBackup = localStorage.getItem("lastAutoBackup");
+      const now = Date.now();
+      const weekInMs = 7 * 24 * 60 * 60 * 1000;
+
+      if (!lastBackup || now - parseInt(lastBackup) > weekInMs) {
+        await exportData();
+        localStorage.setItem("lastAutoBackup", now.toString());
+        toast.success("Auto-backup completed", { duration: 3000 });
+      }
+    };
+
+    // Check on mount
+    checkAndBackup();
+
+    // Check daily
+    const intervalId = setInterval(checkAndBackup, 24 * 60 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [hasLoadedRef.current]);
 
   // Persist on change
   useEffect(() => {
@@ -363,22 +464,6 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
   }, [tasks, strikes, todayStr, currentHour]);
 
   const remaining = useMemo(() => activeTasks.length, [activeTasks]);
-
-  // Helper to calculate diff between two task states
-  const calculateDiff = (oldTask: Task, newTask: Task): Record<string, {old: any;new: any;}> => {
-    const diff: Record<string, {old: any;new: any;}> = {};
-    const keys = new Set([...Object.keys(oldTask), ...Object.keys(newTask)]);
-
-    for (const key of keys) {
-      const oldVal = (oldTask as any)[key];
-      const newVal = (newTask as any)[key];
-      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-        diff[key] = { old: oldVal, new: newVal };
-      }
-    }
-
-    return diff;
-  };
 
   // Helper to record task update
   const recordUpdate = async (oldTask: Task, newTask: Task) => {
@@ -473,20 +558,113 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
     };
   }, [strikes, todayStr, activeTasks, completedTasks]);
 
-  // Add task
+  // Save first-time setup
+  const saveSetup = async () => {
+    const trimmedName = setupName.trim();
+    if (!trimmedName) {
+      toast.error("Please enter your name");
+      return;
+    }
+
+    // Save to localStorage
+    localStorage.setItem("userName", trimmedName);
+    localStorage.setItem("favoriteColor", setupColor);
+    localStorage.setItem("hasCompletedSetup", "true");
+
+    // Update reset hour in settings
+    const settings = await loadSettings();
+    settings.resetHour = setupResetHour;
+    localStorage.setItem("settings", JSON.stringify(settings));
+    setResetHour(setupResetHour);
+
+    setShowSetupDialog(false);
+    toast.success(`Welcome, ${trimmedName}! 🎉`);
+  };
+
+  // Export data
+  const exportData = async () => {
+    try {
+      const data = {
+        tasks,
+        strikes,
+        updates,
+        settings: await loadSettings(),
+        usedMessageIds,
+        exportDate: new Date().toISOString(),
+        version: "1.0"
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `shakshuka-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("Data exported successfully!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Failed to export data");
+    }
+  };
+
+  // Import data
+  const importData = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!data.tasks || !Array.isArray(data.tasks)) {
+        throw new Error("Invalid backup file format");
+      }
+
+      // Restore data
+      setTasks(data.tasks);
+      if (data.strikes) {
+        setStrikes(data.strikes);
+        await saveStrikes(data.strikes);
+      }
+      if (data.updates) {
+        setUpdates(data.updates);
+        await saveUpdates(data.updates);
+      }
+      if (data.usedMessageIds) {
+        setUsedMessageIds(data.usedMessageIds);
+        await saveUsedMessages(data.usedMessageIds);
+      }
+
+      toast.success("Data imported successfully!");
+    } catch (error) {
+      console.error("Import failed:", error);
+      toast.error("Failed to import data. Please check the file format.");
+    }
+  };
+
+  // Add task with validation
   const addTask = () => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
+    const sanitizedTitle = sanitizeInput(title);
+    const validation = validateTaskTitle(sanitizedTitle);
+    
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid task title");
+      return;
+    }
+
+    const sanitizedNotes = sanitizeInput(notes);
     const tags = tagsInput.
     split(",").
-    map((t) => t.trim().toLowerCase()).
+    map((t) => sanitizeInput(t).toLowerCase()).
     filter(Boolean);
+    
     const now = Date.now();
     const newTask: Task = {
       id: generateUUID(),
       revision: 0,
-      title: trimmed,
-      notes: notes.trim() || undefined,
+      title: sanitizedTitle,
+      notes: sanitizedNotes || undefined,
       completed: false,
       createdAt: now,
       updatedAt: now,
@@ -530,24 +708,31 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
     setEditTagsInput("");
   };
 
-  // Save edited task with update tracking
+  // Save edited task with validation
   const saveEditedTask = async () => {
     if (!detailTaskId) return;
-    const trimmedTitle = editTitle.trim();
-    if (!trimmedTitle) return;
+    
+    const sanitizedTitle = sanitizeInput(editTitle);
+    const validation = validateTaskTitle(sanitizedTitle);
+    
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid task title");
+      return;
+    }
 
     const oldTask = tasks.find((t) => t.id === detailTaskId);
     if (!oldTask) return;
 
+    const sanitizedNotes = sanitizeInput(editNotes);
     const tags = editTagsInput.
     split(",").
-    map((t) => t.trim().toLowerCase()).
+    map((t) => sanitizeInput(t).toLowerCase()).
     filter(Boolean);
 
     const newTask: Task = {
       ...oldTask,
-      title: trimmedTitle,
-      notes: editNotes.trim() || undefined,
+      title: sanitizedTitle,
+      notes: sanitizedNotes || undefined,
       dueDate: editDueDate || undefined,
       tags: tags.length ? tags : undefined,
       revision: oldTask.revision + 1,
@@ -752,6 +937,26 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
         <CardTitle className={`flex items-center justify-between text-xl`}>
           <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
           <div className="flex items-center gap-2">
+            {/* Export/Import buttons */}
+            <Button size="sm" variant="outline" onClick={exportData} title="Export data">
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="outline" asChild title="Import data">
+              <label className="cursor-pointer">
+                <Upload className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) importData(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </Button>
+            
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="!w-full !h-full">
@@ -771,8 +976,13 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       placeholder="Task title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      onKeyDown={(e) => {if (e.key === "Enter") addTask();}} />
-
+                      onKeyDown={(e) => {if (e.key === "Enter") addTask();}}
+                      maxLength={200}
+                      aria-describedby="title-hint"
+                    />
+                    <p id="title-hint" className="text-xs text-muted-foreground">
+                      {title.length}/200 characters
+                    </p>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="task-due">Due date</Label>
@@ -782,8 +992,8 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       placeholder="YYYY-MM-DD"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="sm:w-56" />
-
+                      className="sm:w-56"
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="task-notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
@@ -792,8 +1002,9 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       placeholder="Details, links, etc."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      rows={3} />
-
+                      rows={3}
+                      maxLength={500}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
@@ -801,8 +1012,8 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       id="task-tags"
                       placeholder="e.g. work, urgent, home"
                       value={tagsInput}
-                      onChange={(e) => setTagsInput(e.target.value)} />
-
+                      onChange={(e) => setTagsInput(e.target.value)}
+                    />
                   </div>
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0">
@@ -813,6 +1024,12 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
             </Dialog>
           </div>
         </CardTitle>
+        {/* Keyboard shortcuts hint */}
+        {typeof window !== "undefined" && window.location.hostname.includes("localhost") && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Keyboard shortcuts: <kbd className="px-1.5 py-0.5 rounded bg-muted text-xs">N</kbd> New task • <kbd className="px-1.5 py-0.5 rounded bg-muted text-xs">P</kbd> Planner
+          </p>
+        )}
       </CardHeader>
       <CardContent className={compact ? "space-y-2" : "space-y-4"}>
         {/* Search moved above tabs - inline */}
@@ -863,6 +1080,92 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
             </div>
           }
         </div>
+
+        {/* First-Time Setup Dialog */}
+        <Dialog open={showSetupDialog} onOpenChange={(open) => {
+          // Prevent closing if setup not completed
+          if (!open && !localStorage.getItem("hasCompletedSetup")) {
+            toast.error("Please complete the setup to continue");
+            return;
+          }
+          setShowSetupDialog(open);
+        }}>
+          <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle className="text-2xl text-center">👋 Welcome to Shakshuka!</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-center text-sm text-muted-foreground">
+                Let's get you set up. This will only take a moment.
+              </p>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="setup-name">What should we call you?</Label>
+                  <Input
+                    id="setup-name"
+                    placeholder="Your name"
+                    value={setupName}
+                    onChange={(e) => setSetupName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveSetup();
+                    }}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="setup-reset-hour">What time should your day reset?</Label>
+                  <select
+                    id="setup-reset-hour"
+                    value={setupResetHour}
+                    onChange={(e) => setSetupResetHour(Number(e.target.value))}
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i === 0 ? "12:00 AM (Midnight)" : 
+                         i < 12 ? `${i}:00 AM` : 
+                         i === 12 ? "12:00 PM (Noon)" : 
+                         `${i - 12}:00 PM`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Tasks will reset at this time daily
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="setup-color">Pick your favorite color</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="setup-color"
+                      type="color"
+                      value={setupColor}
+                      onChange={(e) => setSetupColor(e.target.value)}
+                      className="h-10 w-20 rounded-md border border-input cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={setupColor}
+                      onChange={(e) => setSetupColor(e.target.value)}
+                      placeholder="#007AFF"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    We'll use this to personalize your experience
+                  </p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={saveSetup} className="w-full" disabled={!setupName.trim()}>
+                Let's Go! 🚀
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Completion Dialog */}
         <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
@@ -1231,6 +1534,6 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
           </DialogContent>
         </Dialog>
       </CardContent>
-    </Card>);
-
+    </Card>
+  );
 };
