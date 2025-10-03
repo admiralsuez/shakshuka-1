@@ -80,20 +80,18 @@ async function saveTasksTauri(tasks: Task[]): Promise<void> {
       baseDir: BaseDirectory.AppData
     });
   } catch {
-
-
-
-
-
-
-
-
-
-
-
     // ignore
-  }} // Existing API persistence (fallback for web)
-async function fetchTasksAPI(): Promise<Task[]> {try {const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;const res = await fetch("/api/tasks", { headers: token ? { Authorization: `Bearer ${token}` } : undefined });if (!res.ok) return [];const data = await res.json();if (!Array.isArray(data)) return [];
+  }
+}
+
+// Existing API persistence (fallback for web)
+async function fetchTasksAPI(): Promise<Task[]> {
+  try {
+    const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;
+    const res = await fetch("/api/tasks", { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
     return data as Task[];
   } catch {
     return [];
@@ -128,24 +126,6 @@ function validateTaskTitle(title: string): { valid: boolean; error?: string } {
   }
   return { valid: true };
 }
-
-// Helper to record task update
-const recordUpdate = async (oldTask: Task, newTask: Task) => {
-  const diff = calculateDiff(oldTask, newTask);
-  if (Object.keys(diff).length === 0) return; // No changes
-
-  const update: TaskUpdate = {
-    updateId: generateUUID(),
-    taskId: newTask.id,
-    timestamp: Date.now(),
-    diff,
-    fullSnapshot: newTask
-  };
-
-  const newUpdates = [...updates, update];
-  setUpdates(newUpdates);
-  await saveUpdates(newUpdates);
-};
 
 // Helper to calculate diff between two task states
 const calculateDiff = (oldTask: Task, newTask: Task): Record<string, {old: any;new: any;}> => {
@@ -226,13 +206,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Add keyboard shortcuts
-  useKeyboardShortcuts(
-    () => setAddOpen(true), // N - New Task
-    undefined // P - Planner (handled by router)
-  );
-
-  // Add keyboard shortcuts
+  // Add keyboard shortcuts (only once)
   useKeyboardShortcuts(
     () => setAddOpen(true), // N - New Task
     undefined // P - Planner (handled by router)
