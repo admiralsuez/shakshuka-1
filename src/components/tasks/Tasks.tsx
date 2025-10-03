@@ -87,11 +87,11 @@ async function saveTasksTauri(tasks: Task[]): Promise<void> {
 
 
 
+
+
     // ignore
   }} // Existing API persistence (fallback for web)
-async function fetchTasksAPI(): Promise<Task[]> {try {const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;const res = await fetch("/api/tasks", { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
-    if (!res.ok) return [];
-    const data = await res.json();
+async function fetchTasksAPI(): Promise<Task[]> {try {const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;const res = await fetch("/api/tasks", { headers: token ? { Authorization: `Bearer ${token}` } : undefined });if (!res.ok) return [];const data = await res.json();
     if (!Array.isArray(data)) return [];
     return data as Task[];
   } catch {
