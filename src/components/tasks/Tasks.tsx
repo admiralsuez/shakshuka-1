@@ -775,26 +775,17 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   };
 
   // Undo strike with 10s timeout - FIXED VERSION
-  const undoStrike = async (taskId: string) => {
-    // Get the most recent strike for this task on today's date
-    const todayStrikesForTask = strikes
-      .filter(s => s.taskId === taskId && s.date === todayStr)
-      .sort((a, b) => b.ts - a.ts); // Sort by timestamp, newest first
+  const undoStrike = async (strikeTimestamp: number) => {
+    // Find the strike by its exact timestamp
+    const strikeToUndo = strikes.find(s => s.ts === strikeTimestamp);
     
-    const latestStrike = todayStrikesForTask[0];
-    
-    if (!latestStrike) {
+    if (!strikeToUndo) {
       toast.error("No recent strike found to undo");
       return;
     }
     
-    // Remove the specific strike entry by matching all properties
-    const newStrikes = strikes.filter(s => 
-      !(s.taskId === latestStrike.taskId && 
-        s.date === latestStrike.date && 
-        s.ts === latestStrike.ts &&
-        s.action === latestStrike.action)
-    );
+    // Remove the specific strike entry
+    const newStrikes = strikes.filter(s => s.ts !== strikeTimestamp);
     
     setStrikes(newStrikes);
     await saveStrikes(newStrikes);
@@ -823,11 +814,12 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     // Wait for animation
     await new Promise(resolve => setTimeout(resolve, 600));
     
+    const strikeTimestamp = Date.now();
     const entry: StrikeEntry = {
       taskId,
       date: todayStr,
       note: strikeNote.trim() || undefined,
-      ts: Date.now(),
+      ts: strikeTimestamp,
       action: "strike",
     };
     const next = [...strikes, entry];
@@ -845,11 +837,11 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       window.dispatchEvent(new CustomEvent("task-struck"));
     }
     
-    // Show undo toast for 10 seconds
+    // Show undo toast for 10 seconds - pass the timestamp
     toast.success("Task struck for today", {
       action: {
         label: "Undo",
-        onClick: () => undoStrike(taskId)
+        onClick: () => undoStrike(strikeTimestamp)
       },
       duration: 10000
     });
