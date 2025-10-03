@@ -10,7 +10,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
 
   return (
-    <div className="relative mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden">
+    <div className="relative mx-auto p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden !w-[63%] !h-[750px] !max-w-[63%]">
       {/* decorative gradients */}
       <div
         className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-2xl"
@@ -41,7 +41,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6 !w-[821px] !h-[199px]"
+      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-4 md:p-6 !w-[822px] !h-[199px]"
       style={{
         background: 'linear-gradient(to bottom right, oklch(0.66 0.2 250 / 0.1), oklch(0.7 0.11 35 / 0.1), oklch(0.8 0.2 140 / 0.1))'
       }}>
