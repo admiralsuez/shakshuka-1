@@ -47,7 +47,11 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await saveSettings(settings);
-      toast.success("Settings saved successfully!");
+      toast.success("Settings saved successfully! Refresh to see changes.");
+      // Trigger a page refresh to update greeting
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error("Failed to save settings:", error);
       toast.error("Failed to save settings");
@@ -69,23 +73,49 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Personal</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 max-w-md">
+            <Label htmlFor="userName">Your Name (optional)</Label>
+            <Input
+              id="userName"
+              placeholder="What should we call you?"
+              value={settings.userName || ""}
+              onChange={(e) => setSettings((s) => ({ ...s, userName: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Used in dashboard greetings. Leave empty for quirky nicknames!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+      
       <Card>
         <CardHeader>
           <CardTitle>Daily Reset</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2 max-w-xs">
-            <Label htmlFor="resetHour">Reset hour (0-23)</Label>
-            <Input
+            <Label htmlFor="resetHour">Reset hour</Label>
+            <select
               id="resetHour"
-              inputMode="numeric"
-              value={String(settings.resetHour)}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^0-9]/g, "");
-                const n = Math.max(0, Math.min(23, parseInt(v || "0", 10)));
-                setSettings((s) => ({ ...s, resetHour: Number.isNaN(n) ? 0 : n }));
-              }}
-            />
+              value={settings.resetHour}
+              onChange={(e) => setSettings((s) => ({ ...s, resetHour: Number(e.target.value) }))}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <option key={i} value={i}>
+                  {i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              When should your tasks refresh each day?
+            </p>
           </div>
           <div className="grid gap-2 max-w-md">
             <Label htmlFor="timezone">Timezone (IANA)</Label>
@@ -96,7 +126,7 @@ export default function SettingsPage() {
               onChange={(e) => setSettings((s) => ({ ...s, timezone: e.target.value }))}
             />
             <p className="text-xs text-muted-foreground">
-              Used to determine day boundaries and 9am (or your custom) reset.
+              Used to determine day boundaries and reset time.
             </p>
           </div>
         </CardContent>

@@ -1,59 +1,38 @@
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
-export function useKeyboardShortcuts(
-  onNewTask?: () => void,
-  onPlanner?: () => void
-) {
-  const router = useRouter();
+export type ShortcutHandler = () => void;
 
+export interface KeyboardShortcuts {
+  [key: string]: ShortcutHandler;
+}
+
+export function useKeyboardShortcuts(shortcuts: KeyboardShortcuts, enabled: boolean = true) {
   useEffect(() => {
+    if (!enabled) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only enable shortcuts on localhost
-      if (typeof window !== "undefined" && !window.location.hostname.includes("localhost")) {
-        return;
-      }
-
-      // Ignore if user is typing in an input/textarea
+      // Don't trigger if user is typing in an input/textarea
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      
+      if (isInput) return;
 
-      // N - New Task (open add task dialog)
-      if (e.key === "n" || e.key === "N") {
-        e.preventDefault();
-        if (onNewTask) onNewTask();
-      }
-
-      // P - Planner
-      if (e.key === "p" || e.key === "P") {
-        e.preventDefault();
-        if (onPlanner) {
-          onPlanner();
-        } else {
-          router.push("/planner");
+      // Check for shortcuts
+      const key = e.key.toLowerCase();
+      
+      // Only override browser defaults on localhost
+      const isLocalhost = typeof window !== "undefined" && 
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      
+      if (shortcuts[key]) {
+        if (isLocalhost) {
+          e.preventDefault();
         }
-      }
-
-      // Override browser defaults on localhost
-      // Ctrl/Cmd + S - Prevent default save
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-      }
-
-      // Ctrl/Cmd + P - Prevent default print (navigate to planner instead)
-      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
-        e.preventDefault();
-        router.push("/planner");
+        shortcuts[key]();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onNewTask, onPlanner, router]);
+  }, [shortcuts, enabled]);
 }

@@ -1,13 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Counters } from "@/components/widgets/Counters";
 import { Tasks } from "@/components/tasks/Tasks";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";
+import { loadSettings, saveSettings } from "@/lib/local-storage";
+import { getQuirkyNickname, getGreeting } from "@/lib/quirky-nicknames";
 
 export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
+  const [displayName, setDisplayName] = useState<string>("");
+  const [greeting, setGreeting] = useState<string>("");
+
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadGreeting = async () => {
+      const settings = await loadSettings();
+      
+      if (!mounted) return;
+      
+      // Determine display name
+      let name = "";
+      if (settings.userName?.trim()) {
+        name = settings.userName.trim();
+      } else {
+        // Use quirky nickname
+        const { nickname, index } = getQuirkyNickname(settings.quirkyNicknameIndex);
+        name = nickname;
+        
+        // Save the new index for next time
+        await saveSettings({ ...settings, quirkyNicknameIndex: index });
+      }
+      
+      setDisplayName(name);
+      setGreeting(getGreeting());
+    };
+    
+    loadGreeting();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="relative mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4 md:space-y-6 overflow-hidden">
@@ -34,7 +70,7 @@ export default function DashboardPage() {
               backgroundClip: 'text',
               color: 'transparent'
             }}>
-              Dashboard
+              {greeting}{displayName && `, ${displayName}`}!
             </span>
           </h1>
           <p className="text-sm md:text-base text-muted-foreground">Track your daily strikes, monitor progress, and manage tasks.</p>

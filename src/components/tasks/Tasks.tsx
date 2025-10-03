@@ -11,7 +11,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { loadSettings, loadStrikes, saveStrikes, type StrikeEntry, formatDateInTZ, loadUpdates, saveUpdates, type TaskUpdate, loadUsedMessages, saveUsedMessages } from "@/lib/local-storage";
+import { loadSettings, loadStrikes, saveStrikes, type StrikeEntry, formatDateInTZ, loadUpdates, saveUpdates, type TaskUpdate, loadUsedMessages, saveUsedMessages, saveSettings } from "@/lib/local-storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { getRandomCompletionMessage } from "@/lib/completion-messages";
@@ -164,11 +164,17 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     expired: number;
   } | null>(null);
 
+  // Add first-time setup dialog state
+  const [showSetupDialog, setShowSetupDialog] = useState(false);
+  const [setupName, setSetupName] = useState("");
+  const [setupResetHour, setSetupResetHour] = useState(9);
+  const [setupFavoriteColor, setSetupFavoriteColor] = useState("#007AFF");
+
   // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Load once - add used messages loading
+  // Load once - check for first-time setup
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -182,6 +188,15 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         tauri ? fetchTasksTauri() : fetchTasksAPI(),
       ]);
       if (!mounted) return;
+      
+      // Check if first-time setup is needed
+      if (!settings.firstTimeSetupCompleted) {
+        setSetupName(settings.userName || "");
+        setSetupResetHour(settings.resetHour);
+        setSetupFavoriteColor(settings.buttonColor || "#007AFF");
+        setShowSetupDialog(true);
+      }
+      
       setResetHour(settings.resetHour);
       setTimezone(settings.timezone);
       setStrikes(existingStrikes);
@@ -746,6 +761,22 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     return taskContent;
   };
 
+  // Save first-time setup
+  const saveFirstTimeSetup = async () => {
+    const settings = await loadSettings();
+    const newSettings = {
+      ...settings,
+      userName: setupName.trim() || undefined,
+      resetHour: setupResetHour,
+      buttonColor: setupFavoriteColor,
+      firstTimeSetupCompleted: true
+    };
+    await saveSettings(newSettings);
+    setResetHour(setupResetHour);
+    setShowSetupDialog(false);
+    toast.success("Welcome! Your preferences have been saved.");
+  };
+
   return (
     <Card className="w-full max-w-3xl">
       <CardHeader className={compact ? "pb-3" : ""}>
@@ -863,6 +894,76 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             </div>
           )}
         </div>
+
+        {/* First-Time Setup Dialog */}
+        <Dialog open={showSetupDialog} onOpenChange={(open) => { if (!open && showSetupDialog) return; setShowSetupDialog(open); }}>
+          <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle className="text-2xl text-center">Welcome! 👋</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-center text-sm text-muted-foreground">
+                Let's personalize your experience
+              </p>
+              
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="setup-name">Your Name (optional)</Label>
+                  <Input
+                    id="setup-name"
+                    placeholder="What should we call you?"
+                    value={setupName}
+                    onChange={(e) => setSetupName(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Used in greetings</p>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="setup-reset-hour">Daily Reset Time</Label>
+                  <select
+                    id="setup-reset-hour"
+                    value={setupResetHour}
+                    onChange={(e) => setSetupResetHour(Number(e.target.value))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">When should your tasks refresh?</p>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="setup-color">Favorite Color</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="setup-color"
+                      type="color"
+                      value={setupFavoriteColor}
+                      onChange={(e) => setSetupFavoriteColor(e.target.value)}
+                      className="h-10 w-20 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={setupFavoriteColor}
+                      onChange={(e) => setSetupFavoriteColor(e.target.value)}
+                      placeholder="#007AFF"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Used for button accents</p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={saveFirstTimeSetup} className="w-full">
+                Get Started
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Completion Dialog */}
         <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
