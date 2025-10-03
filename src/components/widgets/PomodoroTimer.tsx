@@ -90,7 +90,6 @@ export function PomodoroTimer() {
       {/* Time Display */}
       <div className="flex items-center justify-center bg-secondary/80 rounded-lg px-3 h-8">
         <span className="text-sm font-mono font-semibold tabular-nums">
-          {isActive ? "+" : ""}
           {String(minutes).padStart(2, "0")}:{String(remainingSeconds).padStart(2, "0")}
         </span>
       </div>

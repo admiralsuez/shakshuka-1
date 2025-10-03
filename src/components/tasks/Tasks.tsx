@@ -776,20 +776,26 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
 
   // Undo strike with 10s timeout - FIXED VERSION
   const undoStrike = async (taskId: string) => {
-    const latestStrike = [...strikes]
-      .reverse()
-      .find(s => s.taskId === taskId && s.date === todayStr && s.action === "strike");
+    // Get the most recent strike for this task on today's date
+    const todayStrikesForTask = strikes
+      .filter(s => s.taskId === taskId && s.date === todayStr)
+      .sort((a, b) => b.ts - a.ts); // Sort by timestamp, newest first
+    
+    const latestStrike = todayStrikesForTask[0];
     
     if (!latestStrike) {
       toast.error("No recent strike found to undo");
       return;
     }
     
+    // Remove the specific strike entry by matching all properties
     const newStrikes = strikes.filter(s => 
       !(s.taskId === latestStrike.taskId && 
         s.date === latestStrike.date && 
-        s.ts === latestStrike.ts)
+        s.ts === latestStrike.ts &&
+        s.action === latestStrike.action)
     );
+    
     setStrikes(newStrikes);
     await saveStrikes(newStrikes);
     toast.success("Strike undone successfully");
