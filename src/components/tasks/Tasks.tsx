@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { loadSettings, loadStrikes, saveStrikes, type StrikeEntry, formatDateInTZ, loadUpdates, saveUpdates, type TaskUpdate, loadUsedMessages, saveUsedMessages, saveSettings } from "@/lib/local-storage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getRandomCompletionMessage } from "@/lib/completion-messages";
 import confetti from "canvas-confetti";
@@ -236,6 +237,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const useTauriRef = useRef(false);
   const tasksRef = useRef<Task[]>([]);
+  const router = useRouter();
 
   // strike dialog state
   const [strikeTaskId, setStrikeTaskId] = useState<string | null>(null);
@@ -327,6 +329,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       setUpdates(existingUpdates);
       setUsedMessageIds(existingUsedMessages);
       setTasks(data);
+      tasksRef.current = data; // Initialize ref
       hasLoadedRef.current = true;
       
       // Check if we should show daily recap
@@ -364,8 +367,33 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     })();
     return () => {
       mounted = false;
+      // Force immediate save on unmount using latest tasks from ref
+      if (hasLoadedRef.current && tasksRef.current) {
+        if (useTauriRef.current) {
+          saveTasksTauri(tasksRef.current);
+        } else {
+          saveTasksAPI(tasksRef.current);
+        }
+      }
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
     };
+  }, []);
+
+  // Add beforeunload handler to save before page close/reload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Force immediate save before page unloads
+      if (hasLoadedRef.current && tasksRef.current) {
+        if (useTauriRef.current) {
+          saveTasksTauri(tasksRef.current);
+        } else {
+          saveTasksAPI(tasksRef.current);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
   // Auto-refresh tasks at reset hour
@@ -424,7 +452,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   // Persist on change
   useEffect(() => {
     if (!hasLoadedRef.current) return;
-    // keep latest tasks in ref for interval autosave
+    // keep latest tasks in ref for interval autosave and cleanup
     tasksRef.current = tasks;
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(() => {
@@ -435,14 +463,14 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       }
     }, 400);
 
-    // Flush pending save on unmount or before next change
+    // Flush pending save using latest tasks from ref
     return () => {
       if (saveTimeout.current) {
         clearTimeout(saveTimeout.current);
         if (useTauriRef.current) {
-          saveTasksTauri(tasks);
+          saveTasksTauri(tasksRef.current);
         } else {
-          saveTasksAPI(tasks);
+          saveTasksAPI(tasksRef.current);
         }
       }
     };
