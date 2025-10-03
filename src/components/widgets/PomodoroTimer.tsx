@@ -75,46 +75,35 @@ export function PomodoroTimer() {
   const remainingSeconds = seconds % 60;
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={!isBreak ? "default" : "outline"}
-              onClick={switchMode}
-              className="text-xs"
-            >
-              Work
-            </Button>
-            <Button
-              size="sm"
-              variant={isBreak ? "default" : "outline"}
-              onClick={switchMode}
-              className="text-xs"
-            >
-              Break
-            </Button>
-          </div>
+    <div className="flex items-center gap-2">
+      {/* Work/Break Indicator with Flame */}
+      <Button
+        size="sm"
+        variant={!isBreak ? "default" : "secondary"}
+        onClick={switchMode}
+        className="h-8 px-3 text-xs gap-1.5"
+      >
+        🔥
+        <span className="hidden sm:inline">{!isBreak ? "Work" : "Break"}</span>
+      </Button>
 
-          <div className="text-4xl font-bold tabular-nums">
-            {String(minutes).padStart(2, "0")}:{String(remainingSeconds).padStart(2, "0")}
-          </div>
+      {/* Time Display */}
+      <div className="flex items-center justify-center bg-secondary/80 rounded-lg px-3 h-8">
+        <span className="text-sm font-mono font-semibold tabular-nums">
+          {isActive ? "+" : ""}
+          {String(minutes).padStart(2, "0")}:{String(remainingSeconds).padStart(2, "0")}
+        </span>
+      </div>
 
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={toggle}>
-              {isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </Button>
-            <Button size="sm" variant="outline" onClick={reset}>
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <p className="text-xs text-muted-foreground text-center">
-            {isActive ? "Timer running" : "Timer paused"}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Control Buttons */}
+      <div className="flex items-center gap-1">
+        <Button size="sm" variant="ghost" onClick={toggle} className="h-8 w-8 p-0">
+          {isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={reset} className="h-8 w-8 p-0">
+          <RotateCcw className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
   );
 }
