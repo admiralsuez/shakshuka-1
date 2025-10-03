@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { loadSettings, loadStrikes, type StrikeEntry, formatDateInTZ, isTauri } from "@/lib/local-storage";
 import { readTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { toast } from "sonner";
 
 // Minimal task shape
 interface Task {
@@ -98,54 +101,159 @@ export default function ReportsPage() {
     }).length;
   }, [tasks, timezone, monthKey]);
 
+  // Helper to get task title by ID
+  const getTaskTitle = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    return task?.title || taskId;
+  };
+
+  // Handler to add widget to dashboard
+  const addToHomepage = async (widgetType: string, widgetTitle: string) => {
+    try {
+      // Load current widgets
+      const widgets = await loadDashboardWidgets();
+      
+      // Check if widget already exists
+      if (widgets.some(w => w.type === widgetType)) {
+        toast.info(`${widgetTitle} is already on your homepage`);
+        return;
+      }
+      
+      // Add new widget
+      widgets.push({ type: widgetType, title: widgetTitle });
+      await saveDashboardWidgets(widgets);
+      
+      toast.success(`${widgetTitle} added to homepage!`);
+    } catch (error) {
+      toast.error("Failed to add widget to homepage");
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Reports</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Striked (month)</div>
-            <Badge variant="secondary" className="text-base">{monthStrikes}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Striked (month)</div>
+              <Badge variant="secondary" className="text-base">{monthStrikes}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("month-strikes", "Striked (month)")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Completed (month)</div>
-            <Badge variant="secondary" className="text-base">{monthCompleted}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Completed (month)</div>
+              <Badge variant="secondary" className="text-base">{monthCompleted}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("month-completed", "Completed (month)")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Expired (month)</div>
-            <Badge variant="secondary" className="text-base">{monthExpired}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Expired (month)</div>
+              <Badge variant="secondary" className="text-base">{monthExpired}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("month-expired", "Expired (month)")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Tasks added (month)</div>
-            <Badge variant="secondary" className="text-base">{tasksAddedThisMonth}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Tasks added (month)</div>
+              <Badge variant="secondary" className="text-base">{tasksAddedThisMonth}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("month-tasks-added", "Tasks added (month)")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Total tasks</div>
-            <Badge variant="secondary" className="text-base">{totalTasksAdded}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Total tasks</div>
+              <Badge variant="secondary" className="text-base">{totalTasksAdded}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("total-tasks", "Total tasks")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Total strikes</div>
-            <Badge variant="secondary" className="text-base">{totalStrikes}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Total strikes</div>
+              <Badge variant="secondary" className="text-base">{totalStrikes}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("total-strikes", "Total strikes")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Total completed</div>
-            <Badge variant="secondary" className="text-base">{totalCompleted}</Badge>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">Total completed</div>
+              <Badge variant="secondary" className="text-base">{totalCompleted}</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => addToHomepage("total-completed", "Total completed")}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add to homepage
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -178,7 +286,7 @@ export default function ReportsPage() {
                       return (
                         <li key={idx} className="grid grid-cols-4 px-3 py-2 text-sm border-b last:border-b-0">
                           <div className="tabular-nums">{time}</div>
-                          <div className="truncate">{e.taskId}</div>
+                          <div className="truncate">{getTaskTitle(e.taskId)}</div>
                           <div className="capitalize">{e.action || "strike"}</div>
                           <div className="truncate text-muted-foreground">{e.note || "-"}</div>
                         </li>
@@ -192,4 +300,38 @@ export default function ReportsPage() {
       </Card>
     </div>
   );
+}
+
+// Helper functions for dashboard widgets storage
+type DashboardWidget = {
+  type: string;
+  title: string;
+};
+
+async function loadDashboardWidgets(): Promise<DashboardWidget[]> {
+  try {
+    if (await isTauri()) {
+      const ok = await exists("dashboard-widgets.json", { baseDir: BaseDirectory.App });
+      if (!ok) return [];
+      const txt = await readTextFile("dashboard-widgets.json", { baseDir: BaseDirectory.App });
+      return JSON.parse(txt);
+    }
+    const raw = localStorage.getItem("dashboard-widgets");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveDashboardWidgets(widgets: DashboardWidget[]): Promise<void> {
+  try {
+    if (await isTauri()) {
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      await writeTextFile("dashboard-widgets.json", JSON.stringify(widgets, null, 2), { baseDir: BaseDirectory.App });
+    } else {
+      localStorage.setItem("dashboard-widgets", JSON.stringify(widgets));
+    }
+  } catch (error) {
+    console.error("Failed to save dashboard widgets:", error);
+  }
 }

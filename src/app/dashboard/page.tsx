@@ -5,28 +5,93 @@ import { Counters } from "@/components/widgets/Counters";
 import { Tasks } from "@/components/tasks/Tasks";
 import { PomodoroTimer } from "@/components/widgets/PomodoroTimer";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList } from "lucide-react";
-import { loadSettings, saveSettings } from "@/lib/local-storage";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { LayoutGrid, LayoutList, X } from "lucide-react";
+import { loadSettings, saveSettings, loadStrikes, formatDateInTZ, isTauri } from "@/lib/local-storage";
 import { getQuirkyNickname, getGreeting } from "@/lib/quirky-nicknames";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useRouter } from "next/navigation";
+import { readTextFile, writeTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { toast } from "sonner";
+
+// Dashboard widget types
+type DashboardWidget = {
+  type: string;
+  title: string;
+};
+
+interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: number;
+  dueHour?: number;
+}
+
+const TASKS_FILE = "tasks.json";
+
+async function loadTasks(): Promise<Task[]> {
+  try {
+    if (await isTauri()) {
+      const ok = await exists(TASKS_FILE, { baseDir: BaseDirectory.App });
+      if (!ok) return [];
+      const txt = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.App });
+      const data = JSON.parse(txt);
+      return Array.isArray(data) ? (data as Task[]) : [];
+    }
+    const res = await fetch("/api/tasks");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? (data as Task[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function loadDashboardWidgets(): Promise<DashboardWidget[]> {
+  try {
+    if (await isTauri()) {
+      const ok = await exists("dashboard-widgets.json", { baseDir: BaseDirectory.App });
+      if (!ok) return [];
+      const txt = await readTextFile("dashboard-widgets.json", { baseDir: BaseDirectory.App });
+      return JSON.parse(txt);
+    }
+    const raw = localStorage.getItem("dashboard-widgets");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveDashboardWidgets(widgets: DashboardWidget[]): Promise<void> {
+  try {
+    if (await isTauri()) {
+      await writeTextFile("dashboard-widgets.json", JSON.stringify(widgets, null, 2), { baseDir: BaseDirectory.App });
+    } else {
+      localStorage.setItem("dashboard-widgets", JSON.stringify(widgets));
+    }
+  } catch (error) {
+    console.error("Failed to save dashboard widgets:", error);
+  }
+}
 
 export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
   const [displayName, setDisplayName] = useState<string>("");
   const [greeting, setGreeting] = useState<string>("");
   const [showPomodoro, setShowPomodoro] = useState(true);
+  const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
+  const [widgetStats, setWidgetStats] = useState<Record<string, number>>({});
   const tasksRef = useRef<{ openAddDialog: () => void } | null>(null);
   const router = useRouter();
 
   // Setup keyboard shortcuts
   useKeyboardShortcuts({
     n: () => {
-      // Open new task dialog
       tasksRef.current?.openAddDialog();
     },
     p: () => {
-      // Navigate to planner
       router.push("/planner");
     }
   });
@@ -39,19 +104,14 @@ export default function DashboardPage() {
       
       if (!mounted) return;
       
-      // Check pomodoro timer visibility
       setShowPomodoro(settings.showPomodoroTimer !== false);
       
-      // Determine display name
       let name = "";
       if (settings.userName?.trim()) {
         name = settings.userName.trim();
       } else {
-        // Use quirky nickname
         const { nickname, index } = getQuirkyNickname(settings.quirkyNicknameIndex);
         name = nickname;
-        
-        // Save the new index for next time
         await saveSettings({ ...settings, quirkyNicknameIndex: index });
       }
       
@@ -65,6 +125,73 @@ export default function DashboardPage() {
       mounted = false;
     };
   }, []);
+
+  // Load widgets and calculate stats
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadWidgetsAndStats = async () => {
+      const [loadedWidgets, settings, strikes, tasks] = await Promise.all([
+        loadDashboardWidgets(),
+        loadSettings(),
+        loadStrikes(),
+        loadTasks()
+      ]);
+      
+      if (!mounted) return;
+      
+      setWidgets(loadedWidgets);
+      
+      // Calculate stats for each widget type
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat("en-CA", { 
+        timeZone: settings.timezone, 
+        year: "numeric", 
+        month: "2-digit", 
+        day: "2-digit", 
+        hour: "2-digit", 
+        hour12: false 
+      }).formatToParts(now);
+      
+      let y = parseInt(parts.find(p => p.type === "year")?.value || "0");
+      let m = parseInt(parts.find(p => p.type === "month")?.value || "1");
+      const d = parseInt(parts.find(p => p.type === "day")?.value || "1");
+      const h = parseInt(parts.find(p => p.type === "hour")?.value || "0");
+      
+      if (d === 1 && h < settings.resetHour) {
+        m = m === 1 ? 12 : m - 1;
+        if (m === 12) y -= 1;
+      }
+      
+      const monthKey = `${y}-${String(m).padStart(2, "0")}`;
+      const inMonth = (dateStr: string) => dateStr.slice(0, 7) === monthKey;
+      
+      const stats: Record<string, number> = {
+        "month-strikes": strikes.filter(s => s.action === "strike" && inMonth(s.date)).length,
+        "month-completed": strikes.filter(s => s.action === "completed" && inMonth(s.date)).length,
+        "month-expired": strikes.filter(s => s.action === "expired" && inMonth(s.date)).length,
+        "month-tasks-added": tasks.filter(t => inMonth(formatDateInTZ(t.createdAt, settings.timezone))).length,
+        "total-tasks": tasks.length,
+        "total-strikes": strikes.filter(s => s.action === "strike").length,
+        "total-completed": strikes.filter(s => s.action === "completed").length,
+      };
+      
+      setWidgetStats(stats);
+    };
+    
+    loadWidgetsAndStats();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const removeWidget = async (widgetType: string) => {
+    const updated = widgets.filter(w => w.type !== widgetType);
+    setWidgets(updated);
+    await saveDashboardWidgets(updated);
+    toast.success("Widget removed from homepage");
+  };
 
   return (
     <div className="relative mx-auto w-full max-w-5xl p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 overflow-hidden">
@@ -103,6 +230,42 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* Custom Widgets from Reports */}
+      {widgets.length > 0 && (
+        <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-3 sm:p-4 md:p-6"
+          style={{
+            background: 'linear-gradient(to bottom right, oklch(0.8 0.2 140 / 0.1), oklch(0.74 0.2 310 / 0.1), oklch(0.66 0.2 250 / 0.1))'
+          }}
+        >
+          <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+            <span className="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.8 0.2 140)' }} />
+            My Widgets
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {widgets.map((widget) => (
+              <Card key={widget.type}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="text-sm text-muted-foreground flex-1">{widget.title}</div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => removeWidget(widget.type)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <Badge variant="secondary" className="text-base">
+                    {widgetStats[widget.type] ?? 0}
+                  </Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-3 sm:p-4 md:p-6"
         style={{
