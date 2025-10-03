@@ -15,6 +15,7 @@ import { loadSettings, loadStrikes, saveStrikes, type StrikeEntry, formatDateInT
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { getRandomCompletionMessage } from "@/lib/completion-messages";
+import confetti from "canvas-confetti";
 
 export type Task = {
   id: string; // UUID
@@ -814,8 +815,35 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     // Start strike animation
     setStrikingTaskId(taskId);
     
-    // Wait for animation
-    await new Promise(resolve => setTimeout(resolve, 600));
+    // Wait for animation (1.2s now for slower effect)
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Trigger confetti from the task position
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (taskElement) {
+      const rect = taskElement.getBoundingClientRect();
+      const x = (rect.left + rect.width / 2) / window.innerWidth;
+      const y = (rect.top + rect.height / 2) / window.innerHeight;
+      
+      confetti({
+        particleCount: 30,
+        spread: 60,
+        origin: { x, y },
+        scalar: 0.6,
+        gravity: 1.2,
+        ticks: 100
+      });
+    } else {
+      // Fallback: center confetti
+      confetti({
+        particleCount: 30,
+        spread: 60,
+        origin: { x: 0.5, y: 0.5 },
+        scalar: 0.6,
+        gravity: 1.2,
+        ticks: 100
+      });
+    }
     
     const strikeTimestamp = Date.now();
     const entry: StrikeEntry = {
@@ -944,7 +972,8 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     
     const taskContent = compact ? (
       <div 
-        key={t.id} 
+        key={t.id}
+        data-task-id={t.id}
         className={`p-3 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer ${animationClass}`} 
         onClick={() => openTaskDetail(t)}
       >
@@ -975,7 +1004,8 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       </div>
     ) : (
       <li 
-        key={t.id} 
+        key={t.id}
+        data-task-id={t.id}
         className={`flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors ${animationClass}`} 
         onClick={() => openTaskDetail(t)}
       >
@@ -1056,7 +1086,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
         }
         
         .animate-strike {
-          animation: strike-through 0.6s ease-out forwards;
+          animation: strike-through 1.2s ease-in-out forwards;
         }
         
         .animate-strike p {
