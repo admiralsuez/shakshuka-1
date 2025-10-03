@@ -150,6 +150,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [usedMessageIds, setUsedMessageIds] = useState<string[]>([]);
+  
+  // Track previous allStruck state to detect transition
+  const prevAllStruckRef = useRef(false);
 
   // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
@@ -360,15 +363,19 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     return tasks.find(t => t.id === detailTaskId) || null;
   }, [detailTaskId, tasks]);
 
-  // Check if all active tasks are struck
+  // Check if all active tasks are struck - only trigger on transition
   useEffect(() => {
     if (!hasLoadedRef.current) return;
-    if (activeTasks.length === 0) return; // No tasks to complete
+    if (activeTasks.length === 0) {
+      prevAllStruckRef.current = false;
+      return;
+    }
     
     // Check if all active tasks are struck today
     const allStruck = activeTasks.every(t => struckTodayIds.has(t.id));
     
-    if (allStruck && !showCompletionDialog) {
+    // Only show dialog when transitioning from false to true
+    if (allStruck && !prevAllStruckRef.current && !showCompletionDialog) {
       // Get random message
       const message = getRandomCompletionMessage(usedMessageIds);
       setCompletionMessage(message.text);
@@ -381,7 +388,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       // Show completion dialog
       setShowCompletionDialog(true);
     }
-  }, [activeTasks, struckTodayIds, showCompletionDialog, usedMessageIds, hasLoadedRef]);
+    
+    // Update previous state
+    prevAllStruckRef.current = allStruck;
+  }, [activeTasks, struckTodayIds, showCompletionDialog, hasLoadedRef]);
 
   // Calculate daily stats
   const dailyStats = useMemo(() => {
