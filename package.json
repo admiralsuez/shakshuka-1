@@ -6,9 +6,7 @@
         "dev": "next dev --turbopack",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint",
-        "dev:desktop": "tauri dev",
-        "build:desktop": "tauri build"
+        "lint": "next lint"
     },
     "dependencies": {
         "@babel/parser": "^7.28.4",
@@ -47,9 +45,6 @@
         "@react-three/fiber": "^9.0.0-alpha.8",
         "@tabler/icons-react": "^3.35.0",
         "@tailwindcss/typography": "^0.5.16",
-        "@tauri-apps/api": "^2.8.0",
-        "@tauri-apps/plugin-autostart": "^2.5.0",
-        "@tauri-apps/plugin-fs": "2",
         "@tsparticles/engine": "^3.8.1",
         "@tsparticles/react": "^3.0.0",
         "@tsparticles/slim": "^3.8.1",
@@ -106,7 +101,6 @@
     "devDependencies": {
         "@eslint/eslintrc": "^3.3.1",
         "@tailwindcss/postcss": "^4",
-        "@tauri-apps/cli": "^2",
         "@types/node": "^20",
         "@types/react": "^19",
         "@types/react-dom": "^19",
