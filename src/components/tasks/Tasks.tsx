@@ -35,9 +35,9 @@ function generateUUID(): string {
     return crypto.randomUUID();
   }
   // Fallback for older environments
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    const v = c === 'x' ? r : r & 0x3 | 0x8;
     return v.toString(16);
   });
 }
@@ -63,7 +63,7 @@ async function fetchTasksTauri(): Promise<Task[]> {
     if (!fileExists) return [];
     const text = await readTextFile(TASKS_FILE, { baseDir: BaseDirectory.AppData });
     const data = JSON.parse(text);
-    return Array.isArray(data) ? (data as Task[]) : [];
+    return Array.isArray(data) ? data as Task[] : [];
   } catch {
     return [];
   }
@@ -76,19 +76,19 @@ async function saveTasksTauri(tasks: Task[]): Promise<void> {
     // Ensure base directory exists (noop if already present)
     await mkdir(".", { baseDir: BaseDirectory.AppData, recursive: true });
     await writeTextFile(TASKS_FILE, JSON.stringify(tasks, null, 2), {
-      baseDir: BaseDirectory.AppData,
+      baseDir: BaseDirectory.AppData
     });
   } catch {
-    // ignore
-  }
-}
 
+
+    // ignore
+  }}
 // Existing API persistence (fallback for web)
 async function fetchTasksAPI(): Promise<Task[]> {
   try {
     const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;
     const res = await fetch("/api/tasks", {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -105,13 +105,13 @@ async function saveTasksAPI(tasks: Task[]): Promise<void> {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
     },
-    body: JSON.stringify(tasks),
+    body: JSON.stringify(tasks)
   }).catch(() => {});
 }
 
-export const Tasks = ({ compact = false }: { compact?: boolean }) => {
+export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -150,7 +150,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [usedMessageIds, setUsedMessageIds] = useState<string[]>([]);
-  
+
   // Track previous allStruck state to detect transition
   const prevAllStruckRef = useRef(false);
 
@@ -175,12 +175,12 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       const tauri = await isTauri();
       useTauriRef.current = tauri;
       const [settings, existingStrikes, existingUpdates, existingUsedMessages, data] = await Promise.all([
-        loadSettings(),
-        loadStrikes(),
-        loadUpdates(),
-        loadUsedMessages(),
-        tauri ? fetchTasksTauri() : fetchTasksAPI(),
-      ]);
+      loadSettings(),
+      loadStrikes(),
+      loadUpdates(),
+      loadUsedMessages(),
+      tauri ? fetchTasksTauri() : fetchTasksAPI()]
+      );
       if (!mounted) return;
       setResetHour(settings.resetHour);
       setTimezone(settings.timezone);
@@ -189,19 +189,19 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       setUsedMessageIds(existingUsedMessages);
       setTasks(data);
       hasLoadedRef.current = true;
-      
+
       // Check if we should show daily recap
       const lastRecapDate = localStorage.getItem("lastRecapDate");
       const todayStr = formatDateInTZ(Date.now(), settings.timezone);
-      
+
       if (lastRecapDate && lastRecapDate !== todayStr) {
         // Calculate previous day's stats
-        const previousDayStrikes = existingStrikes.filter(s => s.date === lastRecapDate);
-        const completedCount = previousDayStrikes.filter(s => s.action === "completed" || s.action === "strike").length;
-        const struckCount = previousDayStrikes.filter(s => s.action === "strike").length;
-        const expiredCount = previousDayStrikes.filter(s => s.action === "expired").length;
-        const totalTasks = new Set(previousDayStrikes.map(s => s.taskId)).size;
-        
+        const previousDayStrikes = existingStrikes.filter((s) => s.date === lastRecapDate);
+        const completedCount = previousDayStrikes.filter((s) => s.action === "completed" || s.action === "strike").length;
+        const struckCount = previousDayStrikes.filter((s) => s.action === "strike").length;
+        const expiredCount = previousDayStrikes.filter((s) => s.action === "expired").length;
+        const totalTasks = new Set(previousDayStrikes.map((s) => s.taskId)).size;
+
         if (totalTasks > 0) {
           setRecapData({
             date: lastRecapDate,
@@ -212,7 +212,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
           });
           setShowRecapDialog(true);
         }
-        
+
         // Update last recap date
         localStorage.setItem("lastRecapDate", todayStr);
       } else if (!lastRecapDate) {
@@ -229,34 +229,34 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   // Auto-refresh tasks at reset hour
   useEffect(() => {
     if (!hasLoadedRef.current) return;
-    
+
     const checkAndRefresh = () => {
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      
+
       // Check if we're at the reset hour (within the first minute)
       if (currentHour === resetHour && currentMinute === 0) {
         const todayStr = formatDateInTZ(Date.now(), timezone);
         const lastRecapDate = localStorage.getItem("lastRecapDate");
-        
+
         // Reload tasks and strikes
         (async () => {
           const [existingStrikes, data] = await Promise.all([
-            loadStrikes(),
-            useTauriRef.current ? fetchTasksTauri() : fetchTasksAPI(),
-          ]);
+          loadStrikes(),
+          useTauriRef.current ? fetchTasksTauri() : fetchTasksAPI()]
+          );
           setStrikes(existingStrikes);
           setTasks(data);
-          
+
           // Show recap if new day
           if (lastRecapDate && lastRecapDate !== todayStr) {
-            const previousDayStrikes = existingStrikes.filter(s => s.date === lastRecapDate);
-            const completedCount = previousDayStrikes.filter(s => s.action === "completed" || s.action === "strike").length;
-            const struckCount = previousDayStrikes.filter(s => s.action === "strike").length;
-            const expiredCount = previousDayStrikes.filter(s => s.action === "expired").length;
-            const totalTasks = new Set(previousDayStrikes.map(s => s.taskId)).size;
-            
+            const previousDayStrikes = existingStrikes.filter((s) => s.date === lastRecapDate);
+            const completedCount = previousDayStrikes.filter((s) => s.action === "completed" || s.action === "strike").length;
+            const struckCount = previousDayStrikes.filter((s) => s.action === "strike").length;
+            const expiredCount = previousDayStrikes.filter((s) => s.action === "expired").length;
+            const totalTasks = new Set(previousDayStrikes.map((s) => s.taskId)).size;
+
             if (totalTasks > 0) {
               setRecapData({
                 date: lastRecapDate,
@@ -267,13 +267,13 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
               });
               setShowRecapDialog(true);
             }
-            
+
             localStorage.setItem("lastRecapDate", todayStr);
           }
         })();
       }
     };
-    
+
     // Check every minute
     const intervalId = setInterval(checkAndRefresh, 60000);
     return () => clearInterval(intervalId);
@@ -334,9 +334,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   }, [strikes, todayStr]);
 
   // categorize
-  const completedTasks = useMemo(() => tasks.filter(t => t.completed), [tasks]);
+  const completedTasks = useMemo(() => tasks.filter((t) => t.completed), [tasks]);
   const activeTasks = useMemo(() => {
-    const arr = tasks.filter(t => !t.completed);
+    const arr = tasks.filter((t) => !t.completed);
     // move struck-today items to the end
     return arr.sort((a, b) => {
       const aStruck = struckTodayIds.has(a.id);
@@ -347,10 +347,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   }, [tasks, struckTodayIds]);
 
   const expiredTasks = useMemo(() => {
-    return tasks.filter(t => {
+    return tasks.filter((t) => {
       if (t.completed) return false;
       // if already struck today, it's not expired
-      const struckToday = strikes.some(s => s.taskId === t.id && s.date === todayStr && s.action !== "expired");
+      const struckToday = strikes.some((s) => s.taskId === t.id && s.date === todayStr && s.action !== "expired");
       if (struckToday) return false;
       // New logic: compare dueDate string to todayStr
       if (t.dueDate) {
@@ -365,10 +365,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const remaining = useMemo(() => activeTasks.length, [activeTasks]);
 
   // Helper to calculate diff between two task states
-  const calculateDiff = (oldTask: Task, newTask: Task): Record<string, { old: any; new: any }> => {
-    const diff: Record<string, { old: any; new: any }> = {};
+  const calculateDiff = (oldTask: Task, newTask: Task): Record<string, {old: any;new: any;}> => {
+    const diff: Record<string, {old: any;new: any;}> = {};
     const keys = new Set([...Object.keys(oldTask), ...Object.keys(newTask)]);
-    
+
     for (const key of keys) {
       const oldVal = (oldTask as any)[key];
       const newVal = (newTask as any)[key];
@@ -376,7 +376,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         diff[key] = { old: oldVal, new: newVal };
       }
     }
-    
+
     return diff;
   };
 
@@ -384,7 +384,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const recordUpdate = async (oldTask: Task, newTask: Task) => {
     const diff = calculateDiff(oldTask, newTask);
     if (Object.keys(diff).length === 0) return; // No changes
-    
+
     const update: TaskUpdate = {
       updateId: generateUUID(),
       taskId: newTask.id,
@@ -392,7 +392,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       diff,
       fullSnapshot: newTask
     };
-    
+
     const newUpdates = [...updates, update];
     setUpdates(newUpdates);
     await saveUpdates(newUpdates);
@@ -402,19 +402,19 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const allTags = useMemo(() => {
     const set = new Set<string>();
     for (const t of tasks) {
-      t.tags?.forEach(tag => set.add(tag));
+      t.tags?.forEach((tag) => set.add(tag));
     }
     return Array.from(set).sort();
   }, [tasks]);
 
   const matchesTask = (t: Task) => {
     const q = query.trim().toLowerCase();
-    const textOk = q
-      ? t.title.toLowerCase().includes(q) || (t.notes?.toLowerCase().includes(q) ?? false) || (t.tags?.some(tag => tag.includes(q)) ?? false)
-      : true;
-    const tagsOk = selectedTags.length
-      ? (t.tags ? selectedTags.every(tag => t.tags!.includes(tag)) : false)
-      : true;
+    const textOk = q ?
+    t.title.toLowerCase().includes(q) || (t.notes?.toLowerCase().includes(q) ?? false) || (t.tags?.some((tag) => tag.includes(q)) ?? false) :
+    true;
+    const tagsOk = selectedTags.length ?
+    t.tags ? selectedTags.every((tag) => t.tags!.includes(tag)) : false :
+    true;
     return textOk && tagsOk;
   };
 
@@ -425,7 +425,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   // Get the task being viewed/edited
   const detailTask = useMemo(() => {
     if (!detailTaskId) return null;
-    return tasks.find(t => t.id === detailTaskId) || null;
+    return tasks.find((t) => t.id === detailTaskId) || null;
   }, [detailTaskId, tasks]);
 
   // Check if all active tasks are struck - only trigger on transition
@@ -435,37 +435,37 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       prevAllStruckRef.current = false;
       return;
     }
-    
+
     // Check if all active tasks are struck today
-    const allStruck = activeTasks.every(t => struckTodayIds.has(t.id));
-    
+    const allStruck = activeTasks.every((t) => struckTodayIds.has(t.id));
+
     // Only show dialog when transitioning from false to true
     if (allStruck && !prevAllStruckRef.current && !showCompletionDialog) {
       // Get random message
       const message = getRandomCompletionMessage(usedMessageIds);
       setCompletionMessage(message.text);
-      
+
       // Update used messages
       const newUsedIds = [...usedMessageIds, message.msgId];
       setUsedMessageIds(newUsedIds);
       saveUsedMessages(newUsedIds);
-      
+
       // Show completion dialog
       setShowCompletionDialog(true);
     }
-    
+
     // Update previous state
     prevAllStruckRef.current = allStruck;
   }, [activeTasks, struckTodayIds, showCompletionDialog, hasLoadedRef]);
 
   // Calculate daily stats
   const dailyStats = useMemo(() => {
-    const todayStrikes = strikes.filter(s => s.date === todayStr);
-    const completedToday = todayStrikes.filter(s => s.action === "completed" || s.action === "strike");
-    
+    const todayStrikes = strikes.filter((s) => s.date === todayStr);
+    const completedToday = todayStrikes.filter((s) => s.action === "completed" || s.action === "strike");
+
     // Calculate completion times
-    const times = todayStrikes.map(s => new Date(s.ts).toLocaleTimeString());
-    
+    const times = todayStrikes.map((s) => new Date(s.ts).toLocaleTimeString());
+
     return {
       total: activeTasks.length + completedTasks.length,
       completed: completedToday.length,
@@ -477,10 +477,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const addTask = () => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    const tags = tagsInput
-      .split(",")
-      .map(t => t.trim().toLowerCase())
-      .filter(Boolean);
+    const tags = tagsInput.
+    split(",").
+    map((t) => t.trim().toLowerCase()).
+    filter(Boolean);
     const now = Date.now();
     const newTask: Task = {
       id: generateUUID(),
@@ -491,9 +491,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       createdAt: now,
       updatedAt: now,
       ...(dueDate ? { dueDate } : {}),
-      ...(tags.length ? { tags } : {}),
+      ...(tags.length ? { tags } : {})
     };
-    setTasks(prev => [newTask, ...prev]);
+    setTasks((prev) => [newTask, ...prev]);
     setTitle("");
     setNotes("");
     setDueDate("");
@@ -503,11 +503,11 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   };
 
   const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: !t.completed, revision: t.revision + 1, updatedAt: Date.now() } : t)));
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, completed: !t.completed, revision: t.revision + 1, updatedAt: Date.now() } : t));
   };
 
   const removeTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+    setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
   // Open task detail dialog
@@ -536,13 +536,13 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     const trimmedTitle = editTitle.trim();
     if (!trimmedTitle) return;
 
-    const oldTask = tasks.find(t => t.id === detailTaskId);
+    const oldTask = tasks.find((t) => t.id === detailTaskId);
     if (!oldTask) return;
 
-    const tags = editTagsInput
-      .split(",")
-      .map(t => t.trim().toLowerCase())
-      .filter(Boolean);
+    const tags = editTagsInput.
+    split(",").
+    map((t) => t.trim().toLowerCase()).
+    filter(Boolean);
 
     const newTask: Task = {
       ...oldTask,
@@ -555,21 +555,21 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     };
 
     await recordUpdate(oldTask, newTask);
-    
-    setTasks(prev => prev.map(t => t.id === detailTaskId ? newTask : t));
+
+    setTasks((prev) => prev.map((t) => t.id === detailTaskId ? newTask : t));
     setIsEditing(false);
     toast.success("Task updated");
   };
 
   // Undo strike with 10s timeout
   const undoStrike = async (taskId: string) => {
-    const latestStrike = [...strikes]
-      .reverse()
-      .find(s => s.taskId === taskId && s.date === todayStr);
-    
+    const latestStrike = [...strikes].
+    reverse().
+    find((s) => s.taskId === taskId && s.date === todayStr);
+
     if (!latestStrike) return;
-    
-    const newStrikes = strikes.filter(s => s !== latestStrike);
+
+    const newStrikes = strikes.filter((s) => s !== latestStrike);
     setStrikes(newStrikes);
     await saveStrikes(newStrikes);
     toast.success("Strike undone");
@@ -577,9 +577,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
 
   // Get update history for a task
   const getTaskUpdates = (taskId: string) => {
-    return updates
-      .filter(u => u.taskId === taskId)
-      .sort((a, b) => b.timestamp - a.timestamp); // newest first
+    return updates.
+    filter((u) => u.taskId === taskId).
+    sort((a, b) => b.timestamp - a.timestamp); // newest first
   };
 
   // strike handling with undo notification
@@ -589,14 +589,14 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       date: todayStr,
       note: strikeNote.trim() || undefined,
       ts: Date.now(),
-      action: "strike",
+      action: "strike"
     };
     const next = [...strikes, entry];
     setStrikes(next);
     await saveStrikes(next);
     setStrikeTaskId(null);
     setStrikeNote("");
-    
+
     // Show undo toast for 10 seconds
     toast.success("Task struck for today", {
       action: {
@@ -613,12 +613,12 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       date: todayStr,
       note: strikeNote.trim() || undefined,
       ts: Date.now(),
-      action: "completed",
+      action: "completed"
     };
     const next = [...strikes, entry];
     setStrikes(next);
     await saveStrikes(next);
-    setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, completed: true } : t)));
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, completed: true } : t));
     setStrikeTaskId(null);
     setStrikeNote("");
   };
@@ -627,37 +627,37 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const renderStrikeButton = (t: Task) => {
     const struck = struckTodayIds.has(t.id);
     const taskUpdates = getTaskUpdates(t.id);
-    
+
     if (struck && taskUpdates.length > 0) {
       return (
-        <Button 
-          size="sm" 
+        <Button
+          size="sm"
           variant="ghost"
           onClick={(e) => {
             e.stopPropagation();
             openTaskDetail(t);
             setShowUpdateHistory(true);
           }}
-          className="flex-1"
-        >
+          className="flex-1">
+
           <History className="h-4 w-4 mr-1" /> View Update
-        </Button>
-      );
+        </Button>);
+
     }
-    
+
     return (
-      <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => { if (!open) { setStrikeTaskId(null); setStrikeNote(""); } }}>
+      <Dialog open={strikeTaskId === t.id} onOpenChange={(open) => {if (!open) {setStrikeTaskId(null);setStrikeNote("");}}}>
         <DialogTrigger asChild>
-          <Button 
-            size="sm" 
-            variant={struck ? "ghost" : "secondary"} 
+          <Button
+            size="sm"
+            variant={struck ? "ghost" : "secondary"}
             onClick={(e) => {
               e.stopPropagation();
               setStrikeTaskId(t.id);
             }}
             className="flex-1"
-            disabled={struck}
-          >
+            disabled={struck}>
+
             Strike
           </Button>
         </DialogTrigger>
@@ -674,31 +674,31 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             <Button onClick={() => onMarkCompleted(t.id)}>Mark as completed</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-    );
+      </Dialog>);
+
   };
 
   // Render task card/item with click handler
   const renderTaskItem = (t: Task, struck: boolean, compact: boolean) => {
-    const taskContent = compact ? (
-      <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
+    const taskContent = compact ?
+    <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
         <div className="space-y-2">
           <p className={`text-sm font-medium line-clamp-2 text-center ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
             {t.title}
           </p>
-          {(t.dueDate || typeof t.dueHour === "number") && (
-            <p className="text-xs text-muted-foreground">
+          {(t.dueDate || typeof t.dueHour === "number") &&
+        <p className="text-xs text-muted-foreground">
               Due: {t.dueDate || `${t.dueHour}:00`}
             </p>
+        }
+          {t.tags && t.tags.length > 0 &&
+        <div className="flex flex-wrap gap-1">
+              {t.tags.slice(0, 2).map((tag) =>
+          <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
           )}
-          {t.tags && t.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {t.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-              ))}
               {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
             </div>
-          )}
+        }
           <div className="flex items-center gap-1 pt-1" onClick={(e) => e.stopPropagation()}>
             {renderStrikeButton(t)}
             <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
@@ -706,32 +706,32 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             </Button>
           </div>
         </div>
-      </div>
-    ) : (
-      <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
+      </div> :
+
+    <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <p className={`text-sm sm:text-base text-center ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
                 {t.title}
               </p>
-              {(t.dueDate || typeof t.dueHour === "number") && (
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground text-center">
+              {(t.dueDate || typeof t.dueHour === "number") &&
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground text-center">
                   Due {t.dueDate || `${t.dueHour}:00`}
                 </p>
-              )}
-              {t.notes && (
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+            }
+              {t.notes &&
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   {t.notes}
                 </p>
+            }
+              {t.tags && t.tags.length > 0 &&
+            <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                  {t.tags.map((tag) =>
+              <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
               )}
-              {t.tags && t.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1 justify-center">
-                  {t.tags.map(tag => (
-                    <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                  ))}
                 </div>
-              )}
+            }
             </div>
             <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               {renderStrikeButton(t)}
@@ -741,8 +741,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             </div>
           </div>
         </div>
-      </li>
-    );
+      </li>;
+
     return taskContent;
   };
 
@@ -754,7 +754,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
           <div className="flex items-center gap-2">
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className="!w-full !h-full">
                   <Plus className="mr-1 h-4 w-4" /> Add Task
                 </Button>
               </DialogTrigger>
@@ -771,8 +771,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                       placeholder="Task title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
-                    />
+                      onKeyDown={(e) => {if (e.key === "Enter") addTask();}} />
+
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="task-due">Due date</Label>
@@ -782,8 +782,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                       placeholder="YYYY-MM-DD"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="sm:w-56"
-                    />
+                      className="sm:w-56" />
+
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="task-notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
@@ -792,8 +792,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                       placeholder="Details, links, etc."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                    />
+                      rows={3} />
+
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
@@ -801,8 +801,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                       id="task-tags"
                       placeholder="e.g. work, urgent, home"
                       value={tagsInput}
-                      onChange={(e) => setTagsInput(e.target.value)}
-                    />
+                      onChange={(e) => setTagsInput(e.target.value)} />
+
                   </div>
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0">
@@ -820,48 +820,48 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search tasks…" 
-                value={query} 
+              <Input
+                placeholder="Search tasks…"
+                value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-              />
-              {query && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={() => setQuery("")}
-                >
+                className="pl-9" />
+
+              {query &&
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setQuery("")}>
+
                   <X className="h-4 w-4" />
                 </Button>
-              )}
+              }
             </div>
           </div>
-          {allTags.length > 0 && (
-            <div className="space-y-2">
+          {allTags.length > 0 &&
+          <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">Filter by tags:</Label>
               <div className="flex flex-wrap gap-2">
-                {allTags.map(tag => {
-                  const active = selectedTags.includes(tag);
-                  return (
-                    <Button
-                      key={tag}
-                      size="sm"
-                      variant={active ? "default" : "outline"}
-                      onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
-                      className="h-7 rounded-full"
-                    >
+                {allTags.map((tag) => {
+                const active = selectedTags.includes(tag);
+                return (
+                  <Button
+                    key={tag}
+                    size="sm"
+                    variant={active ? "default" : "outline"}
+                    onClick={() => setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
+                    className="h-7 rounded-full">
+
                       #{tag}
-                    </Button>
-                  );
-                })}
+                    </Button>);
+
+              })}
               </div>
-              {selectedTags.length > 0 && (
-                <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
-              )}
+              {selectedTags.length > 0 &&
+            <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
+            }
             </div>
-          )}
+          }
         </div>
 
         {/* Completion Dialog */}
@@ -886,23 +886,23 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                   </div>
                 </div>
                 
-                {dailyStats.times.length > 0 && (
-                  <div className="pt-2">
+                {dailyStats.times.length > 0 &&
+                <div className="pt-2">
                     <p className="text-xs text-muted-foreground mb-1">Completion times:</p>
                     <div className="flex flex-wrap gap-1">
-                      {dailyStats.times.slice(0, 5).map((time, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[10px]">
+                      {dailyStats.times.slice(0, 5).map((time, i) =>
+                    <span key={i} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[10px]">
                           {time}
                         </span>
-                      ))}
-                      {dailyStats.times.length > 5 && (
-                        <span className="px-2 py-0.5 text-[10px] text-muted-foreground">
+                    )}
+                      {dailyStats.times.length > 5 &&
+                    <span className="px-2 py-0.5 text-[10px] text-muted-foreground">
                           +{dailyStats.times.length - 5} more
                         </span>
-                      )}
+                    }
                     </div>
                   </div>
-                )}
+                }
               </div>
             </div>
             <DialogFooter>
@@ -919,8 +919,8 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             <DialogHeader>
               <DialogTitle className="text-2xl text-center">📅 Yesterday's Recap</DialogTitle>
             </DialogHeader>
-            {recapData && (
-              <div className="space-y-4 py-4">
+            {recapData &&
+            <div className="space-y-4 py-4">
                 <p className="text-center text-sm text-muted-foreground">
                   Summary for {recapData.date}
                 </p>
@@ -948,18 +948,18 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                     </div>
                   </div>
                   
-                  {recapData.completed > 0 && (
-                    <div className="pt-2 text-center">
+                  {recapData.completed > 0 &&
+                <div className="pt-2 text-center">
                       <p className="text-sm font-medium">
-                        {recapData.completed === recapData.totalTasks 
-                          ? "🎉 Perfect day! All tasks completed!"
-                          : `${Math.round((recapData.completed / recapData.totalTasks) * 100)}% completion rate`}
+                        {recapData.completed === recapData.totalTasks ?
+                    "🎉 Perfect day! All tasks completed!" :
+                    `${Math.round(recapData.completed / recapData.totalTasks * 100)}% completion rate`}
                       </p>
                     </div>
-                  )}
+                }
                 </div>
               </div>
-            )}
+            }
             <DialogFooter>
               <Button onClick={() => setShowRecapDialog(false)} className="w-full">
                 Got it!
@@ -977,71 +977,71 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
           </TabsList>
 
           <TabsContent value="active" className="mt-2">
-            {compact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {activeFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
-                )}
+            {compact ?
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {activeFiltered.length === 0 &&
+              <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
+              }
                 {activeFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, true);
-                })}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border">
-                {activeFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
-                )}
+                const struck = struckTodayIds.has(t.id);
+                return renderTaskItem(t, struck, true);
+              })}
+              </div> :
+
+            <ul className="divide-y divide-border rounded-md border">
+                {activeFiltered.length === 0 &&
+              <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
+              }
                 {activeFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, false);
-                })}
+                const struck = struckTodayIds.has(t.id);
+                return renderTaskItem(t, struck, false);
+              })}
               </ul>
-            )}
+            }
           </TabsContent>
 
           <TabsContent value="expired" className="mt-2">
-            {compact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {expiredFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
-                )}
+            {compact ?
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {expiredFiltered.length === 0 &&
+              <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
+              }
                 {expiredFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, true);
-                })}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border">
-                {expiredFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
-                )}
+                const struck = struckTodayIds.has(t.id);
+                return renderTaskItem(t, struck, true);
+              })}
+              </div> :
+
+            <ul className="divide-y divide-border rounded-md border">
+                {expiredFiltered.length === 0 &&
+              <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
+              }
                 {expiredFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, false);
-                })}
+                const struck = struckTodayIds.has(t.id);
+                return renderTaskItem(t, struck, false);
+              })}
               </ul>
-            )}
+            }
           </TabsContent>
 
           <TabsContent value="completed" className="mt-2">
-            {compact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {completedFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
-                )}
-                {completedFiltered.map((t) => (
-                  <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
+            {compact ?
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {completedFiltered.length === 0 &&
+              <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
+              }
+                {completedFiltered.map((t) =>
+              <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
                     <div className="space-y-2">
                       <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground text-center">{t.title}</p>
-                      {t.tags && t.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {t.tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                          ))}
+                      {t.tags && t.tags.length > 0 &&
+                  <div className="flex flex-wrap gap-1">
+                          {t.tags.slice(0, 2).map((tag) =>
+                    <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                    )}
                           {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
                         </div>
-                      )}
+                  }
                       <div className="flex items-center justify-end pt-1" onClick={(e) => e.stopPropagation()}>
                         <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
                           <Trash2 className="h-4 w-4" />
@@ -1049,29 +1049,29 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border">
-                {completedFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
-                )}
-                {completedFiltered.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
+              )}
+              </div> :
+
+            <ul className="divide-y divide-border rounded-md border">
+                {completedFiltered.length === 0 &&
+              <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
+              }
+                {completedFiltered.map((t) =>
+              <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="line-through text-muted-foreground text-sm sm:text-base text-center">{t.title}</p>
-                          {t.notes && (
-                            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
-                          )}
-                          {t.tags && t.tags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1 justify-center">
-                              {t.tags.map(tag => (
-                                <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                              ))}
+                          {t.notes &&
+                      <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
+                      }
+                          {t.tags && t.tags.length > 0 &&
+                      <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                              {t.tags.map((tag) =>
+                        <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                        )}
                             </div>
-                          )}
+                      }
                         </div>
                         <div onClick={(e) => e.stopPropagation()}>
                           <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
@@ -1081,156 +1081,156 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
                       </div>
                     </div>
                   </li>
-                ))}
+              )}
               </ul>
-            )}
+            }
           </TabsContent>
         </Tabs>
 
         {/* Task Detail/Edit Dialog */}
-        <Dialog open={!!detailTaskId} onOpenChange={(open) => { if (!open) closeTaskDetail(); }}>
+        <Dialog open={!!detailTaskId} onOpenChange={(open) => {if (!open) closeTaskDetail();}}>
           <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
                 <span>{isEditing ? "Edit Task" : "Task Details"}</span>
-                {!isEditing && !showUpdateHistory && (
-                  <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
+                {!isEditing && !showUpdateHistory &&
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
                     <Edit className="h-4 w-4 mr-1" /> Edit
                   </Button>
-                )}
+                }
               </DialogTitle>
             </DialogHeader>
-            {detailTask && (
-              <div className="grid gap-4">
-                {showUpdateHistory ? (
-                  <div className="space-y-3">
+            {detailTask &&
+            <div className="grid gap-4">
+                {showUpdateHistory ?
+              <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold">Update History</h3>
                       <Button size="sm" variant="ghost" onClick={() => setShowUpdateHistory(false)}>
                         Back
                       </Button>
                     </div>
-                    {getTaskUpdates(detailTask.id).length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No updates recorded yet.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {getTaskUpdates(detailTask.id).map((update) => (
-                          <div key={update.updateId} className="p-3 border rounded-md bg-muted/30">
+                    {getTaskUpdates(detailTask.id).length === 0 ?
+                <p className="text-sm text-muted-foreground">No updates recorded yet.</p> :
+
+                <div className="space-y-3">
+                        {getTaskUpdates(detailTask.id).map((update) =>
+                  <div key={update.updateId} className="p-3 border rounded-md bg-muted/30">
                             <p className="text-xs text-muted-foreground mb-2">
                               {new Date(update.timestamp).toLocaleString()}
                             </p>
                             <div className="space-y-1 text-sm">
-                              {Object.entries(update.diff).map(([key, change]) => (
-                                <div key={key}>
+                              {Object.entries(update.diff).map(([key, change]) =>
+                      <div key={key}>
                                   <span className="font-medium">{key}:</span>{" "}
                                   <span className="line-through text-muted-foreground">{JSON.stringify(change.old)}</span>
                                   {" → "}
                                   <span className="text-foreground">{JSON.stringify(change.new)}</span>
                                 </div>
-                              ))}
+                      )}
                             </div>
                           </div>
-                        ))}
+                  )}
                       </div>
-                    )}
-                  </div>
-                ) : isEditing ? (
-                  <>
+                }
+                  </div> :
+              isEditing ?
+              <>
                     <div className="grid gap-2">
                       <Label htmlFor="edit-task-title">Title</Label>
                       <Input
-                        id="edit-task-title"
-                        placeholder="Task title"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                      />
+                    id="edit-task-title"
+                    placeholder="Task title"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)} />
+
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="edit-task-due">Due date</Label>
                       <Input
-                        id="edit-task-due"
-                        type="date"
-                        value={editDueDate}
-                        onChange={(e) => setEditDueDate(e.target.value)}
-                        className="sm:w-56"
-                      />
+                    id="edit-task-due"
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="sm:w-56" />
+
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="edit-task-notes">Notes</Label>
                       <Textarea
-                        id="edit-task-notes"
-                        placeholder="Details, links, etc."
-                        value={editNotes}
-                        onChange={(e) => setEditNotes(e.target.value)}
-                        rows={3}
-                      />
+                    id="edit-task-notes"
+                    placeholder="Details, links, etc."
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    rows={3} />
+
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="edit-task-tags">Tags (comma-separated)</Label>
                       <Input
-                        id="edit-task-tags"
-                        placeholder="e.g. work, urgent, home"
-                        value={editTagsInput}
-                        onChange={(e) => setEditTagsInput(e.target.value)}
-                      />
+                    id="edit-task-tags"
+                    placeholder="e.g. work, urgent, home"
+                    value={editTagsInput}
+                    onChange={(e) => setEditTagsInput(e.target.value)} />
+
                     </div>
-                  </>
-                ) : (
-                  <>
+                  </> :
+
+              <>
                     <div className="space-y-2">
                       <h3 className="text-lg font-semibold">{detailTask.title}</h3>
-                      {detailTask.dueDate && (
-                        <p className="text-sm text-muted-foreground">Due: {detailTask.dueDate}</p>
-                      )}
-                      {detailTask.notes && (
-                        <div className="mt-3">
+                      {detailTask.dueDate &&
+                  <p className="text-sm text-muted-foreground">Due: {detailTask.dueDate}</p>
+                  }
+                      {detailTask.notes &&
+                  <div className="mt-3">
                           <Label className="text-xs text-muted-foreground">Notes:</Label>
                           <p className="text-sm mt-1">{detailTask.notes}</p>
                         </div>
-                      )}
-                      {detailTask.tags && detailTask.tags.length > 0 && (
-                        <div className="mt-3">
+                  }
+                      {detailTask.tags && detailTask.tags.length > 0 &&
+                  <div className="mt-3">
                           <Label className="text-xs text-muted-foreground">Tags:</Label>
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {detailTask.tags.map(tag => (
-                              <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">#{tag}</span>
-                            ))}
+                            {detailTask.tags.map((tag) =>
+                      <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">#{tag}</span>
+                      )}
                           </div>
                         </div>
-                      )}
+                  }
                       <div className="pt-2 text-xs text-muted-foreground space-y-1">
                         <p>Created: {new Date(detailTask.createdAt).toLocaleString()}</p>
                         <p>Last updated: {new Date(detailTask.updatedAt).toLocaleString()}</p>
                         <p>Revision: {detailTask.revision}</p>
                       </div>
-                      {getTaskUpdates(detailTask.id).length > 0 && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => setShowUpdateHistory(true)}
-                          className="mt-2"
-                        >
+                      {getTaskUpdates(detailTask.id).length > 0 &&
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowUpdateHistory(true)}
+                    className="mt-2">
+
                           <History className="h-4 w-4 mr-1" /> View Update History ({getTaskUpdates(detailTask.id).length})
                         </Button>
-                      )}
+                  }
                     </div>
                   </>
-                )}
+              }
               </div>
-            )}
+            }
             <DialogFooter className="gap-2 sm:gap-0">
-              {isEditing ? (
-                <>
+              {isEditing ?
+              <>
                   <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
                   <Button onClick={saveEditedTask} disabled={!editTitle.trim()}>Save Changes</Button>
-                </>
-              ) : showUpdateHistory ? null : (
-                <Button onClick={closeTaskDetail}>Close</Button>
-              )}
+                </> :
+              showUpdateHistory ? null :
+              <Button onClick={closeTaskDetail}>Close</Button>
+              }
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </CardContent>
-    </Card>
-  );
+    </Card>);
+
 };
