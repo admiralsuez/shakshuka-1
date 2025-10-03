@@ -932,18 +932,18 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="p-3 sm:p-4 md:p-6">
-        <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-base sm:text-lg md:text-xl">
-          <span className="truncate">Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
-          <div className="flex items-center gap-2 flex-wrap">
+    <Card className="w-full max-w-3xl">
+      <CardHeader className={compact ? "pb-3" : ""}>
+        <CardTitle className={`flex items-center justify-between text-xl`}>
+          <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
+          <div className="flex items-center gap-2">
             {/* Export/Import buttons */}
-            <Button size="sm" variant="outline" onClick={exportData} title="Export data" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
-              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Button size="sm" variant="outline" onClick={exportData} title="Export data">
+              <Download className="h-4 w-4" />
             </Button>
-            <Button size="sm" variant="outline" asChild title="Import data" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
-              <label className="cursor-pointer flex items-center justify-center">
-                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Button size="sm" variant="outline" asChild title="Import data">
+              <label className="cursor-pointer">
+                <Upload className="h-4 w-4" />
                 <input
                   type="file"
                   accept=".json"
@@ -959,17 +959,17 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
             
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
-                  <Plus className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4" /> Add Task
+                <Button size="sm" className="!w-full !h-full">
+                  <Plus className="mr-1 h-4 w-4" /> Add Task
                 </Button>
               </DialogTrigger>
-              <DialogContent className="w-[calc(100%-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle className="text-base sm:text-lg">Add a new task</DialogTitle>
+                  <DialogTitle>Add a new task</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-3 sm:gap-4 py-2">
+                <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="task-title" className="text-sm">Title</Label>
+                    <Label htmlFor="task-title">Title</Label>
                     <Input
                       id="task-title"
                       ref={inputRef}
@@ -979,21 +979,20 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       onKeyDown={(e) => {if (e.key === "Enter") addTask();}}
                       maxLength={200}
                       aria-describedby="title-hint"
-                      className="text-sm"
                     />
                     <p id="title-hint" className="text-xs text-muted-foreground">
                       {title.length}/200 characters
                     </p>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="task-due" className="text-sm">Due date</Label>
+                    <Label htmlFor="task-due">Due date</Label>
                     <Input
                       id="task-due"
                       type="date"
                       placeholder="YYYY-MM-DD"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full sm:w-56 text-sm"
+                      className="sm:w-56"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -1005,7 +1004,6 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
                       maxLength={500}
-                      className="text-sm"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -1015,13 +1013,12 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                       placeholder="e.g. work, urgent, home"
                       value={tagsInput}
                       onChange={(e) => setTagsInput(e.target.value)}
-                      className="text-sm"
                     />
                   </div>
                 </div>
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                  <Button variant="secondary" onClick={() => setAddOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-                  <Button onClick={addTask} disabled={!title.trim()} className="w-full sm:w-auto">Add</Button>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
+                  <Button onClick={addTask} disabled={!title.trim()}>Add</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -1029,14 +1026,14 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
         </CardTitle>
         {/* Keyboard shortcuts hint */}
         {typeof window !== "undefined" && window.location.hostname.includes("localhost") && (
-          <p className="text-xs text-muted-foreground mt-2 hidden sm:block">
+          <p className="text-xs text-muted-foreground mt-1">
             Keyboard shortcuts: <kbd className="px-1.5 py-0.5 rounded bg-muted text-xs">N</kbd> New task • <kbd className="px-1.5 py-0.5 rounded bg-muted text-xs">P</kbd> Planner
           </p>
         )}
       </CardHeader>
-      <CardContent className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
+      <CardContent className={compact ? "space-y-2" : "space-y-4"}>
         {/* Search moved above tabs - inline */}
-        <div className="space-y-3 pb-3 sm:pb-4 border-b">
+        <div className="space-y-3 pb-4 border-b">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1044,7 +1041,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                 placeholder="Search tasks…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 text-sm" />
+                className="pl-9" />
 
               {query &&
               <Button
@@ -1052,6 +1049,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                 variant="ghost"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                 onClick={() => setQuery("")}>
+
                   <X className="h-4 w-4" />
                 </Button>
               }
@@ -1060,7 +1058,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
           {allTags.length > 0 &&
           <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">Filter by tags:</Label>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <div className="flex flex-wrap gap-2">
                 {allTags.map((tag) => {
                 const active = selectedTags.includes(tag);
                 return (
@@ -1069,13 +1067,15 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                     size="sm"
                     variant={active ? "default" : "outline"}
                     onClick={() => setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
-                    className="h-6 sm:h-7 text-xs rounded-full">
+                    className="h-7 rounded-full">
+
                       #{tag}
                     </Button>);
+
               })}
               </div>
               {selectedTags.length > 0 &&
-            <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-6 sm:h-7 text-xs">Clear tags</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
             }
             </div>
           }
@@ -1090,18 +1090,18 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
           }
           setShowSetupDialog(open);
         }}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl md:text-2xl text-center">👋 Welcome to Shakshuka!</DialogTitle>
+              <DialogTitle className="text-2xl text-center">👋 Welcome to Shakshuka!</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-3 sm:py-4">
+            <div className="space-y-4 py-4">
               <p className="text-center text-sm text-muted-foreground">
                 Let's get you set up. This will only take a moment.
               </p>
               
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="setup-name" className="text-sm">What should we call you?</Label>
+                  <Label htmlFor="setup-name">What should we call you?</Label>
                   <Input
                     id="setup-name"
                     placeholder="Your name"
@@ -1110,12 +1110,11 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") saveSetup();
                     }}
-                    className="text-sm"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="setup-reset-hour" className="text-sm">What time should your day reset?</Label>
+                  <Label htmlFor="setup-reset-hour">What time should your day reset?</Label>
                   <select
                     id="setup-reset-hour"
                     value={setupResetHour}
@@ -1137,21 +1136,21 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="setup-color" className="text-sm">Pick your favorite color</Label>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <Label htmlFor="setup-color">Pick your favorite color</Label>
+                  <div className="flex items-center gap-3">
                     <input
                       id="setup-color"
                       type="color"
                       value={setupColor}
                       onChange={(e) => setSetupColor(e.target.value)}
-                      className="h-10 w-full sm:w-20 rounded-md border border-input cursor-pointer"
+                      className="h-10 w-20 rounded-md border border-input cursor-pointer"
                     />
                     <Input
                       type="text"
                       value={setupColor}
                       onChange={(e) => setSetupColor(e.target.value)}
                       placeholder="#007AFF"
-                      className="flex-1 text-sm"
+                      className="flex-1"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1170,22 +1169,22 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
         {/* Completion Dialog */}
         <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl md:text-2xl text-center">🎉 All Done!</DialogTitle>
+              <DialogTitle className="text-2xl text-center">🎉 All Done!</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-3 sm:py-4">
-              <p className="text-center text-base sm:text-lg font-medium">{completionMessage}</p>
+            <div className="space-y-4 py-4">
+              <p className="text-center text-lg font-medium">{completionMessage}</p>
               
               <div className="space-y-2 pt-4 border-t">
                 <h3 className="font-semibold text-sm text-muted-foreground">Daily Stats</h3>
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-md bg-muted/50">
-                    <p className="text-xl sm:text-2xl font-bold text-center">{dailyStats.total}</p>
+                    <p className="text-2xl font-bold text-center">{dailyStats.total}</p>
                     <p className="text-xs text-center text-muted-foreground">Total Tasks</p>
                   </div>
                   <div className="p-3 rounded-md bg-muted/50">
-                    <p className="text-xl sm:text-2xl font-bold text-center">{dailyStats.completed}</p>
+                    <p className="text-2xl font-bold text-center">{dailyStats.completed}</p>
                     <p className="text-xs text-center text-muted-foreground">Completed</p>
                   </div>
                 </div>
@@ -1219,35 +1218,35 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
         {/* Daily Recap Dialog */}
         <Dialog open={showRecapDialog} onOpenChange={setShowRecapDialog}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl md:text-2xl text-center">📅 Yesterday's Recap</DialogTitle>
+              <DialogTitle className="text-2xl text-center">📅 Yesterday's Recap</DialogTitle>
             </DialogHeader>
             {recapData &&
-            <div className="space-y-4 py-3 sm:py-4">
+            <div className="space-y-4 py-4">
                 <p className="text-center text-sm text-muted-foreground">
                   Summary for {recapData.date}
                 </p>
                 
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-md bg-muted/50">
-                      <p className="text-xl sm:text-2xl font-bold text-center">{recapData.totalTasks}</p>
+                      <p className="text-2xl font-bold text-center">{recapData.totalTasks}</p>
                       <p className="text-xs text-center text-muted-foreground">Total Tasks</p>
                     </div>
                     <div className="p-3 rounded-md bg-green-100 dark:bg-green-900/30">
-                      <p className="text-xl sm:text-2xl font-bold text-center text-green-700 dark:text-green-300">{recapData.completed}</p>
+                      <p className="text-2xl font-bold text-center text-green-700 dark:text-green-300">{recapData.completed}</p>
                       <p className="text-xs text-center text-muted-foreground">Completed</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-md bg-blue-100 dark:bg-blue-900/30">
-                      <p className="text-xl sm:text-2xl font-bold text-center text-blue-700 dark:text-blue-300">{recapData.struck}</p>
+                      <p className="text-2xl font-bold text-center text-blue-700 dark:text-blue-300">{recapData.struck}</p>
                       <p className="text-xs text-center text-muted-foreground">Struck</p>
                     </div>
                     <div className="p-3 rounded-md bg-orange-100 dark:bg-orange-900/30">
-                      <p className="text-xl sm:text-2xl font-bold text-center text-orange-700 dark:text-orange-300">{recapData.expired}</p>
+                      <p className="text-2xl font-bold text-center text-orange-700 dark:text-orange-300">{recapData.expired}</p>
                       <p className="text-xs text-center text-muted-foreground">Expired</p>
                     </div>
                   </div>
@@ -1274,13 +1273,13 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
         {/* Tabs for Active / Expired / Completed */}
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
-            <TabsTrigger value="active" className="text-xs sm:text-sm py-2">Active ({activeTasks.length})</TabsTrigger>
-            <TabsTrigger value="expired" className="text-xs sm:text-sm py-2">Expired ({expiredTasks.length})</TabsTrigger>
-            <TabsTrigger value="completed" className="text-xs sm:text-sm py-2">Completed ({completedTasks.length})</TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
+            <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="mt-2 sm:mt-3">
+          <TabsContent value="active" className="mt-2">
             {compact ?
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {activeFiltered.length === 0 &&
@@ -1294,7 +1293,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
             <ul className="divide-y divide-border rounded-md border">
                 {activeFiltered.length === 0 &&
-              <li className="p-3 sm:p-4 text-sm text-muted-foreground">No active tasks.</li>
+              <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
               }
                 {activeFiltered.map((t) => {
                 const struck = struckTodayIds.has(t.id);
@@ -1304,7 +1303,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
             }
           </TabsContent>
 
-          <TabsContent value="expired" className="mt-2 sm:mt-3">
+          <TabsContent value="expired" className="mt-2">
             {compact ?
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {expiredFiltered.length === 0 &&
@@ -1318,7 +1317,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
             <ul className="divide-y divide-border rounded-md border">
                 {expiredFiltered.length === 0 &&
-              <li className="p-3 sm:p-4 text-sm text-muted-foreground">No expired tasks.</li>
+              <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
               }
                 {expiredFiltered.map((t) => {
                 const struck = struckTodayIds.has(t.id);
@@ -1328,7 +1327,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
             }
           </TabsContent>
 
-          <TabsContent value="completed" className="mt-2 sm:mt-3">
+          <TabsContent value="completed" className="mt-2">
             {compact ?
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {completedFiltered.length === 0 &&
@@ -1358,7 +1357,7 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
             <ul className="divide-y divide-border rounded-md border">
                 {completedFiltered.length === 0 &&
-              <li className="p-3 sm:p-4 text-sm text-muted-foreground">No completed tasks.</li>
+              <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
               }
                 {completedFiltered.map((t) =>
               <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
@@ -1393,13 +1392,13 @@ export const Tasks = ({ compact = false }: {compact?: boolean;}) => {
 
         {/* Task Detail/Edit Dialog */}
         <Dialog open={!!detailTaskId} onOpenChange={(open) => {if (!open) closeTaskDetail();}}>
-          <DialogContent className="w-[calc(100%-2rem)] max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center justify-between text-base sm:text-lg">
+              <DialogTitle className="flex items-center justify-between">
                 <span>{isEditing ? "Edit Task" : "Task Details"}</span>
                 {!isEditing && !showUpdateHistory &&
-                <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)} className="h-8 text-xs sm:text-sm">
-                    <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Edit
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
+                    <Edit className="h-4 w-4 mr-1" /> Edit
                   </Button>
                 }
               </DialogTitle>

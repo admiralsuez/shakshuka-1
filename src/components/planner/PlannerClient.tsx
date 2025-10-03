@@ -380,95 +380,89 @@ export const PlannerClient = () => {
   };
 
   return (
-    <div className="w-full min-h-screen">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-7xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 sm:h-6 sm:w-6" />
-            <h1 className="text-xl sm:text-2xl font-semibold">Daily Planner</h1>
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentDay(prev => Math.max(0, prev - 1))}
-              disabled={currentDay === 0}
-              className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs sm:text-sm text-muted-foreground min-w-[100px] sm:min-w-[140px] text-center">
-              {formatDateLabel(currentDate)}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentDay(prev => Math.min(2, prev + 1))}
-              disabled={currentDay === 2}
-              className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="mx-auto w-full max-w-7xl p-6">
+      <div className="flex items-center gap-2 mb-6">
+        <Calendar className="h-6 w-6" />
+        <h1 className="text-2xl font-semibold">Daily Planner</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCurrentDay(prev => Math.max(0, prev - 1))}
+            disabled={currentDay === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground min-w-[140px] text-center">
+            {formatDateLabel(currentDate)}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCurrentDay(prev => Math.min(2, prev + 1))}
+            disabled={currentDay === 2}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] xl:grid-cols-[300px_1fr] gap-4 sm:gap-6">
-          {/* Left: Task List */}
-          <Card className="p-3 sm:p-4 h-fit lg:sticky lg:top-20">
-            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Available Tasks</h2>
-            <div className="space-y-2">
-              {unscheduledTasks.length === 0 && (
-                <p className="text-xs sm:text-sm text-muted-foreground">All tasks scheduled</p>
-              )}
-              {unscheduledTasks.map(task => (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={() => handleDragStart(task.id)}
-                  onDragEnd={handleDragEnd}
-                  className="flex items-center gap-2 p-2 sm:p-3 rounded-md border border-border bg-card cursor-grab active:cursor-grabbing hover:bg-accent transition-colors"
-                >
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium truncate">{task.title}</p>
-                    {task.tags && task.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {task.tags.slice(0, 2).map(tag => (
-                          <span
-                            key={tag}
-                            className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent text-accent-foreground"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6">
+        {/* Left: Task List */}
+        <Card className="p-4 h-fit md:sticky md:top-6">
+          <h2 className="text-lg font-semibold mb-4">Available Tasks</h2>
+          <div className="space-y-2">
+            {unscheduledTasks.length === 0 && (
+              <p className="text-sm text-muted-foreground">All tasks scheduled</p>
+            )}
+            {unscheduledTasks.map(task => (
+              <div
+                key={task.id}
+                draggable
+                onDragStart={() => handleDragStart(task.id)}
+                onDragEnd={handleDragEnd}
+                className="flex items-center gap-2 p-3 rounded-md border border-border bg-card cursor-grab active:cursor-grabbing hover:bg-accent transition-colors"
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{task.title}</p>
+                  {task.tags && task.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {task.tags.slice(0, 2).map(tag => (
+                        <span
+                          key={tag}
+                          className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent text-accent-foreground"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          </Card>
+              </div>
+            ))}
+          </div>
+        </Card>
 
-          {/* Right: Schedule */}
-          <Card className="p-0 overflow-hidden">
-            <div className="sticky top-0 bg-card border-b border-border p-3 sm:p-4 z-10">
-              <h2 className="text-base sm:text-lg font-semibold">Schedule</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                Drag tasks from the left. Right-click scheduled tasks to adjust duration.
-              </p>
-            </div>
-            <div ref={scheduleRef} className="overflow-y-auto max-h-[calc(100vh-280px)] sm:max-h-[calc(100vh-250px)]">
-              {renderTimeSlots()}
-            </div>
-          </Card>
-        </div>
+        {/* Right: Schedule */}
+        <Card className="p-0 overflow-hidden">
+          <div className="sticky top-0 bg-card border-b border-border p-4 z-10">
+            <h2 className="text-lg font-semibold">Schedule</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Drag tasks from the left. Right-click scheduled tasks to adjust duration.
+            </p>
+          </div>
+          <div ref={scheduleRef} className="overflow-y-auto max-h-[calc(100vh-250px)]">
+            {renderTimeSlots()}
+          </div>
+        </Card>
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50 min-w-[120px]"
+          className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <div className="px-3 py-1 text-xs font-semibold text-muted-foreground">
@@ -488,18 +482,18 @@ export const PlannerClient = () => {
 
       {/* Midnight Dialog */}
       <Dialog open={midnightDialog?.open ?? false} onOpenChange={(open) => !open && handleCancelMidnight()}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg">Task extends past midnight</DialogTitle>
-            <DialogDescription className="text-sm">
+            <DialogTitle>Task extends past midnight</DialogTitle>
+            <DialogDescription>
               This task will extend beyond the current day. Would you like to move it to the next day starting at midnight?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handleCancelMidnight} className="w-full sm:w-auto">
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelMidnight}>
               Cancel
             </Button>
-            <Button onClick={handleMoveToNextDay} className="w-full sm:w-auto">
+            <Button onClick={handleMoveToNextDay}>
               Move to next day
             </Button>
           </DialogFooter>

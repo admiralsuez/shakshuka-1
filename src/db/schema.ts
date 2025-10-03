@@ -1,32 +1,46 @@
 import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
 
-export const tasks = sqliteTable('tasks', {
+export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  title: text('title').notNull(),
-  description: text('description'),
-  status: text('status').notNull().default('todo'),
-  priority: text('priority').notNull().default('medium'),
-  dueDate: text('due_date'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
-});
-
-export const categories = sqliteTable('categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  color: text('color').notNull(),
-  createdAt: text('created_at').notNull(),
-});
-
-export const taskCategories = sqliteTable('task_categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  taskId: integer('task_id').references(() => tasks.id),
-  categoryId: integer('category_id').references(() => categories.id),
+  name: text('name'),
+  email: text('email').unique(),
 });
 
 export const settings = sqliteTable('settings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  theme: text('theme').notNull().default('system'),
-  defaultView: text('default_view').notNull().default('dashboard'),
-  notifications: integer('notifications', { mode: 'boolean' }).default(true),
+  userId: integer('user_id'),
+  resetHour: integer('reset_hour').notNull().default(9),
+  timezone: text('timezone').notNull().default('UTC'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const tasks = sqliteTable('tasks', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  notes: text('notes'),
+  dueHour: integer('due_hour'),
+  isCompleted: integer('is_completed').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  completedAt: integer('completed_at'),
+});
+
+export const strikes = sqliteTable('strikes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  taskId: integer('task_id').notNull().references(() => tasks.id),
+  date: text('date').notNull(),
+  note: text('note'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const monthlyStats = sqliteTable('monthly_stats', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  month: text('month').notNull(),
+  strikesCount: integer('strikes_count').notNull().default(0),
+  expiredCount: integer('expired_count').notNull().default(0),
+  completedCount: integer('completed_count').notNull().default(0),
+  tasksAddedCount: integer('tasks_added_count').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
 });
