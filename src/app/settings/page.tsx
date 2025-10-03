@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { loadSettings, saveSettings, type AppSettings, loadStrikes, loadUpdates, loadUsedMessages, saveStrikes, saveUpdates, saveUsedMessages } from "@/lib/local-storage";
 import { toast } from "sonner";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, RefreshCw } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 // Tauri detection
 async function isTauri(): Promise<boolean> {
@@ -133,6 +135,9 @@ export default function SettingsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isTauriApp, setIsTauriApp] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -140,9 +145,13 @@ export default function SettingsPage() {
     
     const loadData = async () => {
       try {
-        const s = await loadSettings();
+        const [s, tauri] = await Promise.all([
+          loadSettings(),
+          isTauri()
+        ]);
         if (mounted) {
           setSettings(s);
+          setIsTauriApp(tauri);
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
@@ -216,6 +225,56 @@ export default function SettingsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleCheckForUpdates = async () => {
+    if (!isTauriApp) {
+      toast.error("Updates are only available in the desktop app");
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const update = await check();
+      
+      if (update?.available) {
+        toast.success(`Update available: v${update.version}`);
+        
+        // Ask user if they want to install
+        const install = confirm(`A new version (v${update.version}) is available. Install now?\n\nThe app will restart after installation.`);
+        
+        if (install) {
+          setUpdating(true);
+          toast.info("Downloading update...");
+          
+          await update.downloadAndInstall((event) => {
+            switch (event.event) {
+              case "Started":
+                toast.info(`Downloading ${event.data.contentLength} bytes`);
+                break;
+              case "Progress":
+                const percent = Math.round((event.data.chunkLength / event.data.contentLength!) * 100);
+                console.log(`Downloaded ${percent}%`);
+                break;
+              case "Finished":
+                toast.success("Update downloaded! Restarting...");
+                break;
+            }
+          });
+          
+          // Restart the app
+          await relaunch();
+        }
+      } else {
+        toast.success("You're running the latest version!");
+      }
+    } catch (error) {
+      console.error("Update check failed:", error);
+      toast.error("Failed to check for updates. Please try again later.");
+    } finally {
+      setChecking(false);
+      setUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-3xl p-6">
@@ -229,6 +288,29 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
+      
+      {isTauriApp && (
+        <Card>
+          <CardHeader>
+            <CardTitle>App Updates</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                onClick={handleCheckForUpdates} 
+                disabled={checking || updating}
+                variant="outline"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${checking ? 'animate-spin' : ''}`} />
+                {checking ? "Checking..." : updating ? "Installing..." : "Check for Updates"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Check for and install app updates automatically. The app will restart after installation.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       
       <Card>
         <CardHeader>

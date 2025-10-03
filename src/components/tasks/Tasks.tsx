@@ -776,8 +776,11 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
 
   // Undo strike with 10s timeout - FIXED VERSION
   const undoStrike = async (strikeTimestamp: number) => {
+    // Reload strikes from storage to get the latest data (fixes closure issue)
+    const latestStrikes = await loadStrikes();
+    
     // Find the strike by its exact timestamp
-    const strikeToUndo = strikes.find(s => s.ts === strikeTimestamp);
+    const strikeToUndo = latestStrikes.find(s => s.ts === strikeTimestamp);
     
     if (!strikeToUndo) {
       toast.error("No recent strike found to undo");
@@ -785,7 +788,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     }
     
     // Remove the specific strike entry
-    const newStrikes = strikes.filter(s => s.ts !== strikeTimestamp);
+    const newStrikes = latestStrikes.filter(s => s.ts !== strikeTimestamp);
     
     setStrikes(newStrikes);
     await saveStrikes(newStrikes);
@@ -1274,24 +1277,6 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       <p className="text-xs text-center text-muted-foreground">Completed</p>
                     </div>
                   </div>
-                  
-                  {dailyStats.times.length > 0 && (
-                    <div className="pt-2">
-                      <p className="text-xs text-muted-foreground mb-1">Completion times:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {dailyStats.times.slice(0, 5).map((time, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[10px]">
-                            {time}
-                          </span>
-                        ))}
-                        {dailyStats.times.length > 5 && (
-                          <span className="px-2 py-0.5 text-[10px] text-muted-foreground">
-                            +{dailyStats.times.length - 5} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
               <DialogFooter>
