@@ -154,6 +154,16 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   // Track previous allStruck state to detect transition
   const prevAllStruckRef = useRef(false);
 
+  // Add daily recap dialog state
+  const [showRecapDialog, setShowRecapDialog] = useState(false);
+  const [recapData, setRecapData] = useState<{
+    date: string;
+    totalTasks: number;
+    completed: number;
+    struck: number;
+    expired: number;
+  } | null>(null);
+
   // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -179,6 +189,36 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       setUsedMessageIds(existingUsedMessages);
       setTasks(data);
       hasLoadedRef.current = true;
+      
+      // Check if we should show daily recap
+      const lastRecapDate = localStorage.getItem("lastRecapDate");
+      const todayStr = formatDateInTZ(Date.now(), settings.timezone);
+      
+      if (lastRecapDate && lastRecapDate !== todayStr) {
+        // Calculate previous day's stats
+        const previousDayStrikes = existingStrikes.filter(s => s.date === lastRecapDate);
+        const completedCount = previousDayStrikes.filter(s => s.action === "completed" || s.action === "strike").length;
+        const struckCount = previousDayStrikes.filter(s => s.action === "strike").length;
+        const expiredCount = previousDayStrikes.filter(s => s.action === "expired").length;
+        const totalTasks = new Set(previousDayStrikes.map(s => s.taskId)).size;
+        
+        if (totalTasks > 0) {
+          setRecapData({
+            date: lastRecapDate,
+            totalTasks,
+            completed: completedCount,
+            struck: struckCount,
+            expired: expiredCount
+          });
+          setShowRecapDialog(true);
+        }
+        
+        // Update last recap date
+        localStorage.setItem("lastRecapDate", todayStr);
+      } else if (!lastRecapDate) {
+        // First time - set today as last recap date
+        localStorage.setItem("lastRecapDate", todayStr);
+      }
     })();
     return () => {
       mounted = false;
@@ -197,6 +237,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       
       // Check if we're at the reset hour (within the first minute)
       if (currentHour === resetHour && currentMinute === 0) {
+        const todayStr = formatDateInTZ(Date.now(), timezone);
+        const lastRecapDate = localStorage.getItem("lastRecapDate");
+        
         // Reload tasks and strikes
         (async () => {
           const [existingStrikes, data] = await Promise.all([
@@ -205,6 +248,28 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
           ]);
           setStrikes(existingStrikes);
           setTasks(data);
+          
+          // Show recap if new day
+          if (lastRecapDate && lastRecapDate !== todayStr) {
+            const previousDayStrikes = existingStrikes.filter(s => s.date === lastRecapDate);
+            const completedCount = previousDayStrikes.filter(s => s.action === "completed" || s.action === "strike").length;
+            const struckCount = previousDayStrikes.filter(s => s.action === "strike").length;
+            const expiredCount = previousDayStrikes.filter(s => s.action === "expired").length;
+            const totalTasks = new Set(previousDayStrikes.map(s => s.taskId)).size;
+            
+            if (totalTasks > 0) {
+              setRecapData({
+                date: lastRecapDate,
+                totalTasks,
+                completed: completedCount,
+                struck: struckCount,
+                expired: expiredCount
+              });
+              setShowRecapDialog(true);
+            }
+            
+            localStorage.setItem("lastRecapDate", todayStr);
+          }
         })();
       }
     };
@@ -212,7 +277,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     // Check every minute
     const intervalId = setInterval(checkAndRefresh, 60000);
     return () => clearInterval(intervalId);
-  }, [resetHour]);
+  }, [resetHour, timezone]);
 
   // Persist on change
   useEffect(() => {
@@ -843,6 +908,61 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             <DialogFooter>
               <Button onClick={() => setShowCompletionDialog(false)} className="w-full">
                 Awesome!
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Daily Recap Dialog */}
+        <Dialog open={showRecapDialog} onOpenChange={setShowRecapDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-2xl text-center">📅 Yesterday's Recap</DialogTitle>
+            </DialogHeader>
+            {recapData && (
+              <div className="space-y-4 py-4">
+                <p className="text-center text-sm text-muted-foreground">
+                  Summary for {recapData.date}
+                </p>
+                
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-md bg-muted/50">
+                      <p className="text-2xl font-bold text-center">{recapData.totalTasks}</p>
+                      <p className="text-xs text-center text-muted-foreground">Total Tasks</p>
+                    </div>
+                    <div className="p-3 rounded-md bg-green-100 dark:bg-green-900/30">
+                      <p className="text-2xl font-bold text-center text-green-700 dark:text-green-300">{recapData.completed}</p>
+                      <p className="text-xs text-center text-muted-foreground">Completed</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-md bg-blue-100 dark:bg-blue-900/30">
+                      <p className="text-2xl font-bold text-center text-blue-700 dark:text-blue-300">{recapData.struck}</p>
+                      <p className="text-xs text-center text-muted-foreground">Struck</p>
+                    </div>
+                    <div className="p-3 rounded-md bg-orange-100 dark:bg-orange-900/30">
+                      <p className="text-2xl font-bold text-center text-orange-700 dark:text-orange-300">{recapData.expired}</p>
+                      <p className="text-xs text-center text-muted-foreground">Expired</p>
+                    </div>
+                  </div>
+                  
+                  {recapData.completed > 0 && (
+                    <div className="pt-2 text-center">
+                      <p className="text-sm font-medium">
+                        {recapData.completed === recapData.totalTasks 
+                          ? "🎉 Perfect day! All tasks completed!"
+                          : `${Math.round((recapData.completed / recapData.totalTasks) * 100)}% completion rate`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => setShowRecapDialog(false)} className="w-full">
+                Got it!
               </Button>
             </DialogFooter>
           </DialogContent>
