@@ -151,8 +151,12 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [completionMessage, setCompletionMessage] = useState("");
   const [usedMessageIds, setUsedMessageIds] = useState<string[]>([]);
   
-  // Track previous allStruck state to detect transition
+  // Track previous allStruck state to detect transition - ADD FLAG TO TRACK IF STRIKE ACTION HAPPENED
   const prevAllStruckRef = useRef(false);
+  const userActionRef = useRef(false); // NEW: Track if user performed a strike action
+  
+  // Add striking animation state
+  const [strikingTaskId, setStrikingTaskId] = useState<string | null>(null);
 
   // Add daily recap dialog state
   const [showRecapDialog, setShowRecapDialog] = useState(false);
@@ -173,6 +177,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // Add button color state
+  const [buttonColor, setButtonColor] = useState("#007AFF");
 
   // Load once - check for first-time setup
   useEffect(() => {
@@ -199,6 +206,7 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       
       setResetHour(settings.resetHour);
       setTimezone(settings.timezone);
+      setButtonColor(settings.buttonColor || "#007AFF");
       setStrikes(existingStrikes);
       setUpdates(existingUpdates);
       setUsedMessageIds(existingUsedMessages);
@@ -443,9 +451,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     return tasks.find(t => t.id === detailTaskId) || null;
   }, [detailTaskId, tasks]);
 
-  // Check if all active tasks are struck - only trigger on transition
+  // Check if all active tasks are struck - only trigger on transition AND after user action
   useEffect(() => {
     if (!hasLoadedRef.current) return;
+    if (!userActionRef.current) return; // NEW: Only check after user action
     if (activeTasks.length === 0) {
       prevAllStruckRef.current = false;
       return;
@@ -467,6 +476,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       
       // Show completion dialog
       setShowCompletionDialog(true);
+      
+      // Reset user action flag
+      userActionRef.current = false;
     }
     
     // Update previous state
@@ -576,18 +588,25 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     toast.success("Task updated");
   };
 
-  // Undo strike with 10s timeout
+  // Undo strike with 10s timeout - FIXED VERSION
   const undoStrike = async (taskId: string) => {
     const latestStrike = [...strikes]
       .reverse()
-      .find(s => s.taskId === taskId && s.date === todayStr);
+      .find(s => s.taskId === taskId && s.date === todayStr && s.action === "strike");
     
-    if (!latestStrike) return;
+    if (!latestStrike) {
+      toast.error("No recent strike found to undo");
+      return;
+    }
     
-    const newStrikes = strikes.filter(s => s !== latestStrike);
+    const newStrikes = strikes.filter(s => 
+      !(s.taskId === latestStrike.taskId && 
+        s.date === latestStrike.date && 
+        s.ts === latestStrike.ts)
+    );
     setStrikes(newStrikes);
     await saveStrikes(newStrikes);
-    toast.success("Strike undone");
+    toast.success("Strike undone successfully");
   };
 
   // Get update history for a task
@@ -597,8 +616,14 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       .sort((a, b) => b.timestamp - a.timestamp); // newest first
   };
 
-  // strike handling with undo notification
+  // strike handling with undo notification and animation
   const onStrikeToday = async (taskId: string) => {
+    // Start strike animation
+    setStrikingTaskId(taskId);
+    
+    // Wait for animation
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
     const entry: StrikeEntry = {
       taskId,
       date: todayStr,
@@ -611,6 +636,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     await saveStrikes(next);
     setStrikeTaskId(null);
     setStrikeNote("");
+    setStrikingTaskId(null);
+    
+    // Set user action flag to enable completion check
+    userActionRef.current = true;
     
     // Show undo toast for 10 seconds
     toast.success("Task struck for today", {
@@ -636,11 +665,15 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, completed: true } : t)));
     setStrikeTaskId(null);
     setStrikeNote("");
+    
+    // Set user action flag
+    userActionRef.current = true;
   };
 
   // Render task with Strike/View Update button
   const renderStrikeButton = (t: Task) => {
     const struck = struckTodayIds.has(t.id);
+    const isStriking = strikingTaskId === t.id;
     const taskUpdates = getTaskUpdates(t.id);
     
     if (struck && taskUpdates.length > 0) {
@@ -671,9 +704,10 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
               setStrikeTaskId(t.id);
             }}
             className="flex-1"
-            disabled={struck}
+            disabled={struck || isStriking}
+            style={!struck && !isStriking ? { backgroundColor: buttonColor, color: 'white' } : undefined}
           >
-            Strike
+            {isStriking ? "Striking..." : "Strike"}
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
@@ -685,20 +719,38 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
             <Textarea id={`strike-note-${t.id}`} value={strikeNote} onChange={(e) => setStrikeNote(e.target.value)} rows={3} placeholder="What did you do?" />
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="secondary" onClick={() => onStrikeToday(t.id)}>Strike for today</Button>
-            <Button onClick={() => onMarkCompleted(t.id)}>Mark as completed</Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => onStrikeToday(t.id)}
+              style={{ backgroundColor: buttonColor, color: 'white' }}
+            >
+              Strike for today
+            </Button>
+            <Button 
+              onClick={() => onMarkCompleted(t.id)}
+              style={{ backgroundColor: buttonColor, color: 'white' }}
+            >
+              Mark as completed
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     );
   };
 
-  // Render task card/item with click handler
+  // Render task card/item with click handler and animation
   const renderTaskItem = (t: Task, struck: boolean, compact: boolean) => {
+    const isStriking = strikingTaskId === t.id;
+    const animationClass = isStriking ? "animate-strike" : "";
+    
     const taskContent = compact ? (
-      <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
+      <div 
+        key={t.id} 
+        className={`p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer ${animationClass}`} 
+        onClick={() => openTaskDetail(t)}
+      >
         <div className="space-y-2">
-          <p className={`text-sm font-medium line-clamp-2 text-center ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
+          <p className={`text-sm font-medium line-clamp-2 text-center transition-all duration-500 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
             {t.title}
           </p>
           {(t.dueDate || typeof t.dueHour === "number") && (
@@ -723,11 +775,15 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         </div>
       </div>
     ) : (
-      <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
+      <li 
+        key={t.id} 
+        className={`flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors ${animationClass}`} 
+        onClick={() => openTaskDetail(t)}
+      >
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <p className={`text-sm sm:text-base text-center ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
+              <p className={`text-sm sm:text-base text-center transition-all duration-500 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
                 {t.title}
               </p>
               {(t.dueDate || typeof t.dueHour === "number") && (
@@ -773,565 +829,591 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     };
     await saveSettings(newSettings);
     setResetHour(setupResetHour);
+    setButtonColor(setupFavoriteColor);
     setShowSetupDialog(false);
     toast.success("Welcome! Your preferences have been saved.");
   };
 
   return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader className={compact ? "pb-3" : ""}>
-        <CardTitle className={`flex items-center justify-between text-xl`}>
-          <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
-          <div className="flex items-center gap-2">
-            <Dialog open={addOpen} onOpenChange={setAddOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="mr-1 h-4 w-4" /> Add Task
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Add a new task</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="task-title">Title</Label>
-                    <Input
-                      id="task-title"
-                      ref={inputRef}
-                      placeholder="Task title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="task-due">Due date</Label>
-                    <Input
-                      id="task-due"
-                      type="date"
-                      placeholder="YYYY-MM-DD"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="sm:w-56"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="task-notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
-                    <Textarea
-                      id="task-notes"
-                      placeholder="Details, links, etc."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
-                    <Input
-                      id="task-tags"
-                      placeholder="e.g. work, urgent, home"
-                      value={tagsInput}
-                      onChange={(e) => setTagsInput(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
-                  <Button onClick={addTask} disabled={!title.trim()}>Add</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className={compact ? "space-y-2" : "space-y-4"}>
-        {/* Search moved above tabs - inline */}
-        <div className="space-y-3 pb-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search tasks…" 
-                value={query} 
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-              />
-              {query && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={() => setQuery("")}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-          {allTags.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Filter by tags:</Label>
-              <div className="flex flex-wrap gap-2">
-                {allTags.map(tag => {
-                  const active = selectedTags.includes(tag);
-                  return (
-                    <Button
-                      key={tag}
-                      size="sm"
-                      variant={active ? "default" : "outline"}
-                      onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
-                      className="h-7 rounded-full"
-                    >
-                      #{tag}
-                    </Button>
-                  );
-                })}
-              </div>
-              {selectedTags.length > 0 && (
-                <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* First-Time Setup Dialog */}
-        <Dialog open={showSetupDialog} onOpenChange={(open) => { if (!open && showSetupDialog) return; setShowSetupDialog(open); }}>
-          <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
-            <DialogHeader>
-              <DialogTitle className="text-2xl text-center">Welcome! 👋</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <p className="text-center text-sm text-muted-foreground">
-                Let's personalize your experience
-              </p>
-              
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="setup-name">Your Name (optional)</Label>
-                  <Input
-                    id="setup-name"
-                    placeholder="What should we call you?"
-                    value={setupName}
-                    onChange={(e) => setSetupName(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">Used in greetings</p>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="setup-reset-hour">Daily Reset Time</Label>
-                  <select
-                    id="setup-reset-hour"
-                    value={setupResetHour}
-                    onChange={(e) => setSetupResetHour(Number(e.target.value))}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <option key={i} value={i}>
-                        {i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">When should your tasks refresh?</p>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="setup-color">Favorite Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="setup-color"
-                      type="color"
-                      value={setupFavoriteColor}
-                      onChange={(e) => setSetupFavoriteColor(e.target.value)}
-                      className="h-10 w-20 cursor-pointer"
-                    />
-                    <Input
-                      type="text"
-                      value={setupFavoriteColor}
-                      onChange={(e) => setSetupFavoriteColor(e.target.value)}
-                      placeholder="#007AFF"
-                      className="flex-1"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Used for button accents</p>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={saveFirstTimeSetup} className="w-full">
-                Get Started
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Completion Dialog */}
-        <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-2xl text-center">🎉 All Done!</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <p className="text-center text-lg font-medium">{completionMessage}</p>
-              
-              <div className="space-y-2 pt-4 border-t">
-                <h3 className="font-semibold text-sm text-muted-foreground">Daily Stats</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-md bg-muted/50">
-                    <p className="text-2xl font-bold text-center">{dailyStats.total}</p>
-                    <p className="text-xs text-center text-muted-foreground">Total Tasks</p>
-                  </div>
-                  <div className="p-3 rounded-md bg-muted/50">
-                    <p className="text-2xl font-bold text-center">{dailyStats.completed}</p>
-                    <p className="text-xs text-center text-muted-foreground">Completed</p>
-                  </div>
-                </div>
-                
-                {dailyStats.times.length > 0 && (
-                  <div className="pt-2">
-                    <p className="text-xs text-muted-foreground mb-1">Completion times:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {dailyStats.times.slice(0, 5).map((time, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[10px]">
-                          {time}
-                        </span>
-                      ))}
-                      {dailyStats.times.length > 5 && (
-                        <span className="px-2 py-0.5 text-[10px] text-muted-foreground">
-                          +{dailyStats.times.length - 5} more
-                        </span>
-                      )}
+    <>
+      <style jsx global>{`
+        @keyframes strike-through {
+          0% {
+            background-position: 0% 50%;
+            background-size: 0% 2px;
+          }
+          100% {
+            background-position: 100% 50%;
+            background-size: 100% 2px;
+          }
+        }
+        
+        .animate-strike {
+          animation: strike-through 0.6s ease-in-out;
+        }
+        
+        .animate-strike p {
+          background: linear-gradient(to right, currentColor 0%, currentColor 100%) no-repeat;
+          background-size: 100% 2px;
+          background-position: 0 50%;
+        }
+      `}</style>
+      
+      <Card className="w-full max-w-3xl">
+        <CardHeader className={compact ? "pb-3" : ""}>
+          <CardTitle className={`flex items-center justify-between text-xl`}>
+            <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
+            <div className="flex items-center gap-2">
+              <Dialog open={addOpen} onOpenChange={setAddOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-1 h-4 w-4" /> Add Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Add a new task</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="task-title">Title</Label>
+                      <Input
+                        id="task-title"
+                        ref={inputRef}
+                        placeholder="Task title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="task-due">Due date</Label>
+                      <Input
+                        id="task-due"
+                        type="date"
+                        placeholder="YYYY-MM-DD"
+                        value={dueDate}
+                        onChange={(e) => setDueDate(e.target.value)}
+                        className="sm:w-56"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="task-notes" className="text-sm text-muted-foreground">Notes (optional)</Label>
+                      <Textarea
+                        id="task-notes"
+                        placeholder="Details, links, etc."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
+                      <Input
+                        id="task-tags"
+                        placeholder="e.g. work, urgent, home"
+                        value={tagsInput}
+                        onChange={(e) => setTagsInput(e.target.value)}
+                      />
                     </div>
                   </div>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
+                    <Button onClick={addTask} disabled={!title.trim()}>Add</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className={compact ? "space-y-2" : "space-y-4"}>
+          {/* Search moved above tabs - inline */}
+          <div className="space-y-3 pb-4 border-b">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search tasks…" 
+                  value={query} 
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-9"
+                />
+                {query && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setQuery("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
             </div>
-            <DialogFooter>
-              <Button onClick={() => setShowCompletionDialog(false)} className="w-full">
-                Awesome!
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            {allTags.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Filter by tags:</Label>
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map(tag => {
+                    const active = selectedTags.includes(tag);
+                    return (
+                      <Button
+                        key={tag}
+                        size="sm"
+                        variant={active ? "default" : "outline"}
+                        onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                        className="h-7 rounded-full"
+                      >
+                        #{tag}
+                      </Button>
+                    );
+                  })}
+                </div>
+                {selectedTags.length > 0 && (
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
+                )}
+              </div>
+            )}
+          </div>
 
-        {/* Daily Recap Dialog */}
-        <Dialog open={showRecapDialog} onOpenChange={setShowRecapDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-2xl text-center">📅 Yesterday's Recap</DialogTitle>
-            </DialogHeader>
-            {recapData && (
+          {/* First-Time Setup Dialog */}
+          <Dialog open={showSetupDialog} onOpenChange={(open) => { if (!open && showSetupDialog) return; setShowSetupDialog(open); }}>
+            <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+              <DialogHeader>
+                <DialogTitle className="text-2xl text-center">Welcome! 👋</DialogTitle>
+              </DialogHeader>
               <div className="space-y-4 py-4">
                 <p className="text-center text-sm text-muted-foreground">
-                  Summary for {recapData.date}
+                  Let's personalize your experience
                 </p>
                 
-                <div className="space-y-3">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="setup-name">Your Name (optional)</Label>
+                    <Input
+                      id="setup-name"
+                      placeholder="What should we call you?"
+                      value={setupName}
+                      onChange={(e) => setSetupName(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Used in greetings</p>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="setup-reset-hour">Daily Reset Time</Label>
+                    <select
+                      id="setup-reset-hour"
+                      value={setupResetHour}
+                      onChange={(e) => setSetupResetHour(Number(e.target.value))}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>
+                          {i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">When should your tasks refresh?</p>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="setup-color">Favorite Color</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="setup-color"
+                        type="color"
+                        value={setupFavoriteColor}
+                        onChange={(e) => setSetupFavoriteColor(e.target.value)}
+                        className="h-10 w-20 cursor-pointer"
+                      />
+                      <Input
+                        type="text"
+                        value={setupFavoriteColor}
+                        onChange={(e) => setSetupFavoriteColor(e.target.value)}
+                        placeholder="#007AFF"
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Used for button accents</p>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={saveFirstTimeSetup} className="w-full">
+                  Get Started
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Completion Dialog */}
+          <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-2xl text-center">🎉 All Done!</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <p className="text-center text-lg font-medium">{completionMessage}</p>
+                
+                <div className="space-y-2 pt-4 border-t">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Daily Stats</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-md bg-muted/50">
-                      <p className="text-2xl font-bold text-center">{recapData.totalTasks}</p>
+                      <p className="text-2xl font-bold text-center">{dailyStats.total}</p>
                       <p className="text-xs text-center text-muted-foreground">Total Tasks</p>
                     </div>
-                    <div className="p-3 rounded-md bg-green-100 dark:bg-green-900/30">
-                      <p className="text-2xl font-bold text-center text-green-700 dark:text-green-300">{recapData.completed}</p>
+                    <div className="p-3 rounded-md bg-muted/50">
+                      <p className="text-2xl font-bold text-center">{dailyStats.completed}</p>
                       <p className="text-xs text-center text-muted-foreground">Completed</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-md bg-blue-100 dark:bg-blue-900/30">
-                      <p className="text-2xl font-bold text-center text-blue-700 dark:text-blue-300">{recapData.struck}</p>
-                      <p className="text-xs text-center text-muted-foreground">Struck</p>
-                    </div>
-                    <div className="p-3 rounded-md bg-orange-100 dark:bg-orange-900/30">
-                      <p className="text-2xl font-bold text-center text-orange-700 dark:text-orange-300">{recapData.expired}</p>
-                      <p className="text-xs text-center text-muted-foreground">Expired</p>
-                    </div>
-                  </div>
-                  
-                  {recapData.completed > 0 && (
-                    <div className="pt-2 text-center">
-                      <p className="text-sm font-medium">
-                        {recapData.completed === recapData.totalTasks 
-                          ? "🎉 Perfect day! All tasks completed!"
-                          : `${Math.round((recapData.completed / recapData.totalTasks) * 100)}% completion rate`}
-                      </p>
+                  {dailyStats.times.length > 0 && (
+                    <div className="pt-2">
+                      <p className="text-xs text-muted-foreground mb-1">Completion times:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {dailyStats.times.slice(0, 5).map((time, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[10px]">
+                            {time}
+                          </span>
+                        ))}
+                        {dailyStats.times.length > 5 && (
+                          <span className="px-2 py-0.5 text-[10px] text-muted-foreground">
+                            +{dailyStats.times.length - 5} more
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
-            )}
-            <DialogFooter>
-              <Button onClick={() => setShowRecapDialog(false)} className="w-full">
-                Got it!
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={() => setShowCompletionDialog(false)} className="w-full">
+                  Awesome!
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-        {/* Tabs for Active / Expired / Completed */}
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList>
-            <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
-            <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="active" className="mt-2">
-            {compact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {activeFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
-                )}
-                {activeFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, true);
-                })}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border">
-                {activeFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
-                )}
-                {activeFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, false);
-                })}
-              </ul>
-            )}
-          </TabsContent>
-
-          <TabsContent value="expired" className="mt-2">
-            {compact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {expiredFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
-                )}
-                {expiredFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, true);
-                })}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border">
-                {expiredFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
-                )}
-                {expiredFiltered.map((t) => {
-                  const struck = struckTodayIds.has(t.id);
-                  return renderTaskItem(t, struck, false);
-                })}
-              </ul>
-            )}
-          </TabsContent>
-
-          <TabsContent value="completed" className="mt-2">
-            {compact ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {completedFiltered.length === 0 && (
-                  <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
-                )}
-                {completedFiltered.map((t) => (
-                  <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground text-center">{t.title}</p>
-                      {t.tags && t.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {t.tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                          ))}
-                          {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
-                        </div>
-                      )}
-                      <div className="flex items-center justify-end pt-1" onClick={(e) => e.stopPropagation()}>
-                        <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+          {/* Daily Recap Dialog */}
+          <Dialog open={showRecapDialog} onOpenChange={setShowRecapDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-2xl text-center">📅 Yesterday's Recap</DialogTitle>
+              </DialogHeader>
+              {recapData && (
+                <div className="space-y-4 py-4">
+                  <p className="text-center text-sm text-muted-foreground">
+                    Summary for {recapData.date}
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-md bg-muted/50">
+                        <p className="text-2xl font-bold text-center">{recapData.totalTasks}</p>
+                        <p className="text-xs text-center text-muted-foreground">Total Tasks</p>
+                      </div>
+                      <div className="p-3 rounded-md bg-green-100 dark:bg-green-900/30">
+                        <p className="text-2xl font-bold text-center text-green-700 dark:text-green-300">{recapData.completed}</p>
+                        <p className="text-xs text-center text-muted-foreground">Completed</p>
                       </div>
                     </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-md bg-blue-100 dark:bg-blue-900/30">
+                        <p className="text-2xl font-bold text-center text-blue-700 dark:text-blue-300">{recapData.struck}</p>
+                        <p className="text-xs text-center text-muted-foreground">Struck</p>
+                      </div>
+                      <div className="p-3 rounded-md bg-orange-100 dark:bg-orange-900/30">
+                        <p className="text-2xl font-bold text-center text-orange-700 dark:text-orange-300">{recapData.expired}</p>
+                        <p className="text-xs text-center text-muted-foreground">Expired</p>
+                      </div>
+                    </div>
+                    
+                    {recapData.completed > 0 && (
+                      <div className="pt-2 text-center">
+                        <p className="text-sm font-medium">
+                          {recapData.completed === recapData.totalTasks 
+                            ? "🎉 Perfect day! All tasks completed!"
+                            : `${Math.round((recapData.completed / recapData.totalTasks) * 100)}% completion rate`}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border rounded-md border">
-                {completedFiltered.length === 0 && (
-                  <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
-                )}
-                {completedFiltered.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="line-through text-muted-foreground text-sm sm:text-base text-center">{t.title}</p>
-                          {t.notes && (
-                            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
-                          )}
-                          {t.tags && t.tags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1 justify-center">
-                              {t.tags.map(tag => (
-                                <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div onClick={(e) => e.stopPropagation()}>
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={() => setShowRecapDialog(false)} className="w-full">
+                  Got it!
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Tabs for Active / Expired / Completed */}
+          <Tabs defaultValue="active" className="w-full">
+            <TabsList>
+              <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
+              <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
+              <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="active" className="mt-2">
+              {compact ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {activeFiltered.length === 0 && (
+                    <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
+                  )}
+                  {activeFiltered.map((t) => {
+                    const struck = struckTodayIds.has(t.id);
+                    return renderTaskItem(t, struck, true);
+                  })}
+                </div>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border">
+                  {activeFiltered.length === 0 && (
+                    <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
+                  )}
+                  {activeFiltered.map((t) => {
+                    const struck = struckTodayIds.has(t.id);
+                    return renderTaskItem(t, struck, false);
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="expired" className="mt-2">
+              {compact ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {expiredFiltered.length === 0 && (
+                    <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
+                  )}
+                  {expiredFiltered.map((t) => {
+                    const struck = struckTodayIds.has(t.id);
+                    return renderTaskItem(t, struck, true);
+                  })}
+                </div>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border">
+                  {expiredFiltered.length === 0 && (
+                    <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
+                  )}
+                  {expiredFiltered.map((t) => {
+                    const struck = struckTodayIds.has(t.id);
+                    return renderTaskItem(t, struck, false);
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="completed" className="mt-2">
+              {compact ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {completedFiltered.length === 0 && (
+                    <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
+                  )}
+                  {completedFiltered.map((t) => (
+                    <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground text-center">{t.title}</p>
+                        {t.tags && t.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {t.tags.slice(0, 2).map(tag => (
+                              <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                            ))}
+                            {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-end pt-1" onClick={(e) => e.stopPropagation()}>
                           <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </TabsContent>
-        </Tabs>
+                  ))}
+                </div>
+              ) : (
+                <ul className="divide-y divide-border rounded-md border">
+                  {completedFiltered.length === 0 && (
+                    <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
+                  )}
+                  {completedFiltered.map((t) => (
+                    <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="line-through text-muted-foreground text-sm sm:text-base text-center">{t.title}</p>
+                            {t.notes && (
+                              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
+                            )}
+                            {t.tags && t.tags.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                                {t.tags.map(tag => (
+                                  <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+          </Tabs>
 
-        {/* Task Detail/Edit Dialog */}
-        <Dialog open={!!detailTaskId} onOpenChange={(open) => { if (!open) closeTaskDetail(); }}>
-          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span>{isEditing ? "Edit Task" : "Task Details"}</span>
-                {!isEditing && !showUpdateHistory && (
-                  <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
-                    <Edit className="h-4 w-4 mr-1" /> Edit
-                  </Button>
-                )}
-              </DialogTitle>
-            </DialogHeader>
-            {detailTask && (
-              <div className="grid gap-4">
-                {showUpdateHistory ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Update History</h3>
-                      <Button size="sm" variant="ghost" onClick={() => setShowUpdateHistory(false)}>
-                        Back
-                      </Button>
+          {/* Task Detail/Edit Dialog */}
+          <Dialog open={!!detailTaskId} onOpenChange={(open) => { if (!open) closeTaskDetail(); }}>
+            <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between">
+                  <span>{isEditing ? "Edit Task" : "Task Details"}</span>
+                  {!isEditing && !showUpdateHistory && (
+                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
+                      <Edit className="h-4 w-4 mr-1" /> Edit
+                    </Button>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+              {detailTask && (
+                <div className="grid gap-4">
+                  {showUpdateHistory ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold">Update History</h3>
+                        <Button size="sm" variant="ghost" onClick={() => setShowUpdateHistory(false)}>
+                          Back
+                        </Button>
+                      </div>
+                      {getTaskUpdates(detailTask.id).length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No updates recorded yet.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {getTaskUpdates(detailTask.id).map((update) => (
+                            <div key={update.updateId} className="p-3 border rounded-md bg-muted/30">
+                              <p className="text-xs text-muted-foreground mb-2">
+                                {new Date(update.timestamp).toLocaleString()}
+                              </p>
+                              <div className="space-y-1 text-sm">
+                                {Object.entries(update.diff).map(([key, change]) => (
+                                  <div key={key}>
+                                    <span className="font-medium">{key}:</span>{" "}
+                                    <span className="line-through text-muted-foreground">{JSON.stringify(change.old)}</span>
+                                    {" → "}
+                                    <span className="text-foreground">{JSON.stringify(change.new)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {getTaskUpdates(detailTask.id).length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No updates recorded yet.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {getTaskUpdates(detailTask.id).map((update) => (
-                          <div key={update.updateId} className="p-3 border rounded-md bg-muted/30">
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {new Date(update.timestamp).toLocaleString()}
-                            </p>
-                            <div className="space-y-1 text-sm">
-                              {Object.entries(update.diff).map(([key, change]) => (
-                                <div key={key}>
-                                  <span className="font-medium">{key}:</span>{" "}
-                                  <span className="line-through text-muted-foreground">{JSON.stringify(change.old)}</span>
-                                  {" → "}
-                                  <span className="text-foreground">{JSON.stringify(change.new)}</span>
-                                </div>
+                  ) : isEditing ? (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-task-title">Title</Label>
+                        <Input
+                          id="edit-task-title"
+                          placeholder="Task title"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-task-due">Due date</Label>
+                        <Input
+                          id="edit-task-due"
+                          type="date"
+                          value={editDueDate}
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          className="sm:w-56"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-task-notes">Notes</Label>
+                        <Textarea
+                          id="edit-task-notes"
+                          placeholder="Details, links, etc."
+                          value={editNotes}
+                          onChange={(e) => setEditNotes(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-task-tags">Tags (comma-separated)</Label>
+                        <Input
+                          id="edit-task-tags"
+                          placeholder="e.g. work, urgent, home"
+                          value={editTagsInput}
+                          onChange={(e) => setEditTagsInput(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold">{detailTask.title}</h3>
+                        {detailTask.dueDate && (
+                          <p className="text-sm text-muted-foreground">Due: {detailTask.dueDate}</p>
+                        )}
+                        {detailTask.notes && (
+                          <div className="mt-3">
+                            <Label className="text-xs text-muted-foreground">Notes:</Label>
+                            <p className="text-sm mt-1">{detailTask.notes}</p>
+                          </div>
+                        )}
+                        {detailTask.tags && detailTask.tags.length > 0 && (
+                          <div className="mt-3">
+                            <Label className="text-xs text-muted-foreground">Tags:</Label>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {detailTask.tags.map(tag => (
+                                <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">#{tag}</span>
                               ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : isEditing ? (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-task-title">Title</Label>
-                      <Input
-                        id="edit-task-title"
-                        placeholder="Task title"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-task-due">Due date</Label>
-                      <Input
-                        id="edit-task-due"
-                        type="date"
-                        value={editDueDate}
-                        onChange={(e) => setEditDueDate(e.target.value)}
-                        className="sm:w-56"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-task-notes">Notes</Label>
-                      <Textarea
-                        id="edit-task-notes"
-                        placeholder="Details, links, etc."
-                        value={editNotes}
-                        onChange={(e) => setEditNotes(e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-task-tags">Tags (comma-separated)</Label>
-                      <Input
-                        id="edit-task-tags"
-                        placeholder="e.g. work, urgent, home"
-                        value={editTagsInput}
-                        onChange={(e) => setEditTagsInput(e.target.value)}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">{detailTask.title}</h3>
-                      {detailTask.dueDate && (
-                        <p className="text-sm text-muted-foreground">Due: {detailTask.dueDate}</p>
-                      )}
-                      {detailTask.notes && (
-                        <div className="mt-3">
-                          <Label className="text-xs text-muted-foreground">Notes:</Label>
-                          <p className="text-sm mt-1">{detailTask.notes}</p>
+                        )}
+                        <div className="pt-2 text-xs text-muted-foreground space-y-1">
+                          <p>Created: {new Date(detailTask.createdAt).toLocaleString()}</p>
+                          <p>Last updated: {new Date(detailTask.updatedAt).toLocaleString()}</p>
+                          <p>Revision: {detailTask.revision}</p>
                         </div>
-                      )}
-                      {detailTask.tags && detailTask.tags.length > 0 && (
-                        <div className="mt-3">
-                          <Label className="text-xs text-muted-foreground">Tags:</Label>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {detailTask.tags.map(tag => (
-                              <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">#{tag}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="pt-2 text-xs text-muted-foreground space-y-1">
-                        <p>Created: {new Date(detailTask.createdAt).toLocaleString()}</p>
-                        <p>Last updated: {new Date(detailTask.updatedAt).toLocaleString()}</p>
-                        <p>Revision: {detailTask.revision}</p>
+                        {getTaskUpdates(detailTask.id).length > 0 && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => setShowUpdateHistory(true)}
+                            className="mt-2"
+                          >
+                            <History className="h-4 w-4 mr-1" /> View Update History ({getTaskUpdates(detailTask.id).length})
+                          </Button>
+                        )}
                       </div>
-                      {getTaskUpdates(detailTask.id).length > 0 && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => setShowUpdateHistory(true)}
-                          className="mt-2"
-                        >
-                          <History className="h-4 w-4 mr-1" /> View Update History ({getTaskUpdates(detailTask.id).length})
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            <DialogFooter className="gap-2 sm:gap-0">
-              {isEditing ? (
-                <>
-                  <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-                  <Button onClick={saveEditedTask} disabled={!editTitle.trim()}>Save Changes</Button>
-                </>
-              ) : showUpdateHistory ? null : (
-                <Button onClick={closeTaskDetail}>Close</Button>
+                    </>
+                  )}
+                </div>
               )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+              <DialogFooter className="gap-2 sm:gap-0">
+                {isEditing ? (
+                  <>
+                    <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button onClick={saveEditedTask} disabled={!editTitle.trim()}>Save Changes</Button>
+                  </>
+                ) : showUpdateHistory ? null : (
+                  <Button onClick={closeTaskDetail}>Close</Button>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
+    </>
   );
 };

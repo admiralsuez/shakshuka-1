@@ -1,77 +1,116 @@
-import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/db';
+import { tasks } from '@/db/schema';
 
 export type Task = {
   id: string;
+  revision: number;
   title: string;
   notes?: string;
   completed: boolean;
   createdAt: number;
-  // allow optional due hour for daily deadline (0-23)
+  updatedAt: number;
   dueHour?: number;
-  // optional absolute due date (epoch ms at start of day)
-  dueAt?: number;
-  // optional due date string (YYYY-MM-DD in user TZ)
   dueDate?: string;
+  tags?: string[];
 };
 
-const DATA_DIR = path.join(process.cwd(), ".data");
-const FILE_PATH = path.join(DATA_DIR, "tasks.json");
-
-async function ensureDir() {
+export async function GET() {
   try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch {}
-}
+    const allTasks = await db.select().from(tasks);
+    
+    // Transform database records to API format with safe JSON parsing
+    const transformedTasks: Task[] = allTasks.map(task => {
+      let parsedTags;
+      try {
+        parsedTags = task.tags ? JSON.parse(task.tags) : undefined;
+      } catch (e) {
+        // If JSON parsing fails, treat as undefined
+        parsedTags = undefined;
+      }
 
-async function readTasks(): Promise<Task[]> {
-  try {
-    const raw = await fs.readFile(FILE_PATH, "utf8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((t: any) => typeof t?.id === "string" && typeof t?.title === "string");
-  } catch (e: any) {
-    if (e?.code === "ENOENT") return [];
-    return [];
+      return {
+        id: String(task.id),
+        revision: task.revision || 1,
+        title: task.title,
+        notes: task.notes || undefined,
+        completed: Boolean(task.completed),
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        dueHour: task.dueHour || undefined,
+        dueDate: task.dueDate || undefined,
+        tags: Array.isArray(parsedTags) ? parsedTags : undefined,
+      };
+    });
+
+    return NextResponse.json(transformedTasks);
+  } catch (error) {
+    console.error('GET error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error: ' + error 
+    }, { status: 500 });
   }
 }
 
-async function writeTasks(tasks: Task[]) {
-  await ensureDir();
-  await fs.writeFile(FILE_PATH, JSON.stringify(tasks, null, 2), "utf8");
-}
-
-export async function GET() {
-  const tasks = await readTasks();
-  return NextResponse.json(tasks);
-}
-
-// Overwrite all tasks (simple, resilient persistence model)
-export async function PUT(req: Request) {
+// Replace all tasks (overwrite persistence model)
+export async function PUT(request: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await request.json();
+    
     if (!Array.isArray(body)) {
-      return NextResponse.json({ error: "Expected an array of tasks" }, { status: 400 });
+      return NextResponse.json({ 
+        error: "Expected an array of tasks",
+        code: "INVALID_PAYLOAD" 
+      }, { status: 400 });
     }
-    // Basic validation & normalization
-    const tasks: Task[] = body.map((t: any) => ({
-      id: String(t.id),
-      title: String(t.title),
-      notes: t.notes ? String(t.notes) : undefined,
-      completed: Boolean(t.completed),
-      createdAt: Number(t.createdAt ?? Date.now()),
-      // keep optional dueHour when provided and valid
-      ...(Number.isInteger(t?.dueHour) && t.dueHour >= 0 && t.dueHour <= 23 ? { dueHour: Number(t.dueHour) } : {}),
-      // accept optional dueAt when provided and valid number
-      ...(Number.isFinite(t?.dueAt) ? { dueAt: Number(t.dueAt) } : {}),
-      // accept optional dueDate string (YYYY-MM-DD)
-      ...(typeof t?.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) ? { dueDate: t.dueDate } : {}),
-    }));
 
-    await writeTasks(tasks);
+    // Clear all existing tasks first
+    try {
+      await db.delete(tasks);
+    } catch (deleteError) {
+      console.warn('Delete failed:', deleteError);
+    }
+
+    // If empty array, just return success
+    if (body.length === 0) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Validate and normalize tasks
+    const normalizedTasks = body.map((t: any) => {
+      if (!t.id || typeof t.id !== 'string') {
+        throw new Error('Task ID is required and must be a string');
+      }
+      if (!t.title || typeof t.title !== 'string') {  
+        throw new Error('Task title is required and must be a string');
+      }
+
+      const now = Date.now();
+      
+      return {
+        id: String(t.id),
+        revision: Number(t.revision) || 1,
+        title: String(t.title),
+        notes: t.notes ? String(t.notes) : null,
+        completed: t.completed ? 1 : 0,
+        createdAt: Number(t.createdAt) || now,
+        updatedAt: Number(t.updatedAt) || now,
+        dueHour: (Number.isInteger(t?.dueHour) && t.dueHour >= 0 && t.dueHour <= 23) ? Number(t.dueHour) : null,
+        dueDate: (typeof t?.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate)) ? t.dueDate : null,
+        tags: (Array.isArray(t.tags) && t.tags.length > 0) ? JSON.stringify(t.tags) : null,
+      };
+    });
+
+    // Insert new tasks
+    if (normalizedTasks.length > 0) {
+      await db.insert(tasks).values(normalizedTasks);
+    }
+
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  } catch (error) {
+    console.error('PUT error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error: ' + error 
+    }, { status: 500 });
   }
 }

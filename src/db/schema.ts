@@ -15,20 +15,22 @@ export const settings = sqliteTable('settings', {
   updatedAt: integer('updated_at').notNull(),
 });
 
-export const tasks = sqliteTable('tasks', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const tasksV2 = sqliteTable('tasks_v2', {
+  id: text('id').primaryKey(),
+  revision: integer('revision').notNull().default(1),
   title: text('title').notNull(),
   notes: text('notes'),
-  dueHour: integer('due_hour'),
-  isCompleted: integer('is_completed').notNull().default(0),
+  completed: integer('completed').notNull().default(0),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
-  completedAt: integer('completed_at'),
+  dueHour: integer('due_hour'),
+  dueDate: text('due_date'),
+  tags: text('tags', { mode: 'json' }),
 });
 
 export const strikes = sqliteTable('strikes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  taskId: integer('task_id').notNull().references(() => tasks.id),
+  taskId: integer('task_id').notNull().references(() => tasksV2.id),
   date: text('date').notNull(),
   note: text('note'),
   createdAt: integer('created_at').notNull(),
@@ -43,4 +45,56 @@ export const monthlyStats = sqliteTable('monthly_stats', {
   tasksAddedCount: integer('tasks_added_count').notNull().default(0),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
+});
+
+export const userTasks = sqliteTable('user_tasks', {
+  id: text('id').primaryKey(),
+  revision: integer('revision').notNull().default(1),
+  title: text('title').notNull(),
+  notes: text('notes'),
+  completed: integer('completed').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  dueHour: integer('due_hour'),
+  dueDate: text('due_date'),
+  tags: text('tags'),
+});
+
+export const taskItems = sqliteTable('task_items', {
+  id: text('id').primaryKey(),
+  revision: integer('revision').notNull().default(1),
+  title: text('title').notNull(),
+  notes: text('notes'),
+  completed: integer('completed').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  dueHour: integer('due_hour'),
+  dueDate: text('due_date'),
+  tags: text('tags'),
+});
+
+export const cleanTasks = sqliteTable('clean_tasks', {
+  id: text('id').primaryKey(),
+  revision: integer('revision').notNull().default(1),
+  title: text('title').notNull(),
+  notes: text('notes'),
+  completed: integer('completed').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  dueHour: integer('due_hour'),
+  dueDate: text('due_date'),
+  tags: text('tags'),
+});
+
+export const tasks = sqliteTable('tasks', {
+  id: text('id').primaryKey(),
+  revision: integer('revision').notNull().default(1),
+  title: text('title').notNull(),
+  notes: text('notes'),
+  completed: integer('completed').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  dueHour: integer('due_hour'),
+  dueDate: text('due_date'),
+  tags: text('tags'),
 });
