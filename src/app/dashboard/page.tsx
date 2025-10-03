@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Counters } from "@/components/widgets/Counters";
 import { Tasks } from "@/components/tasks/Tasks";
+import { PomodoroTimer } from "@/components/widgets/PomodoroTimer";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";
 import { loadSettings, saveSettings } from "@/lib/local-storage";
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
   const [displayName, setDisplayName] = useState<string>("");
   const [greeting, setGreeting] = useState<string>("");
+  const [showPomodoro, setShowPomodoro] = useState(true);
   const tasksRef = useRef<{ openAddDialog: () => void } | null>(null);
   const router = useRouter();
 
@@ -36,6 +38,9 @@ export default function DashboardPage() {
       const settings = await loadSettings();
       
       if (!mounted) return;
+      
+      // Check pomodoro timer visibility
+      setShowPomodoro(settings.showPomodoroTimer !== false);
       
       // Determine display name
       let name = "";
@@ -99,17 +104,33 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-3 sm:p-4 md:p-6"
-        style={{
-          background: 'linear-gradient(to bottom right, oklch(0.66 0.2 250 / 0.1), oklch(0.7 0.11 35 / 0.1), oklch(0.8 0.2 140 / 0.1))'
-        }}
-      >
-        <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
-          <span className="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.66 0.2 250)' }} />
-          Quick stats
-        </h2>
-        <Counters />
-      </section>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+        <section className="lg:col-span-2 rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-3 sm:p-4 md:p-6"
+          style={{
+            background: 'linear-gradient(to bottom right, oklch(0.66 0.2 250 / 0.1), oklch(0.7 0.11 35 / 0.1), oklch(0.8 0.2 140 / 0.1))'
+          }}
+        >
+          <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+            <span className="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.66 0.2 250)' }} />
+            Quick stats
+          </h2>
+          <Counters />
+        </section>
+
+        {showPomodoro && (
+          <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-3 sm:p-4 md:p-6"
+            style={{
+              background: 'linear-gradient(to bottom right, oklch(0.74 0.2 310 / 0.1), oklch(0.72 0.15 160 / 0.1))'
+            }}
+          >
+            <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+              <span className="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.74 0.2 310)' }} />
+              Pomodoro Timer
+            </h2>
+            <PomodoroTimer />
+          </section>
+        )}
+      </div>
 
       <section className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-2 p-3 sm:p-4 md:p-6"
         style={{

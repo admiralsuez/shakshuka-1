@@ -802,6 +802,13 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       .sort((a, b) => b.timestamp - a.timestamp); // newest first
   };
 
+  // Get strike notes for a task
+  const getTaskStrikeNotes = (taskId: string) => {
+    return strikes
+      .filter(s => s.taskId === taskId && s.note)
+      .sort((a, b) => b.ts - a.ts); // newest first
+  };
+
   // strike handling with undo notification and animation
   const onStrikeToday = async (taskId: string) => {
     // Start strike animation
@@ -826,6 +833,11 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     
     // Set user action flag to enable completion check
     userActionRef.current = true;
+    
+    // Dispatch custom event to stop pomodoro timer
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("task-struck"));
+    }
     
     // Show undo toast for 10 seconds
     toast.success("Task struck for today", {
@@ -860,9 +872,9 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const renderStrikeButton = (t: Task) => {
     const struck = struckTodayIds.has(t.id);
     const isStriking = strikingTaskId === t.id;
-    const taskUpdates = getTaskUpdates(t.id);
+    const strikeNotes = getTaskStrikeNotes(t.id);
     
-    if (struck && taskUpdates.length > 0) {
+    if (struck && strikeNotes.length > 0) {
       return (
         <Button 
           size="sm" 
@@ -872,9 +884,9 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
             openTaskDetail(t);
             setShowUpdateHistory(true);
           }}
-          className="flex-1"
+          className="flex-1 min-w-0"
         >
-          <History className="h-4 w-4 mr-1" /> View Update
+          <History className="h-4 w-4 mr-1" /> Updates
         </Button>
       );
     }
@@ -889,7 +901,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
               e.stopPropagation();
               setStrikeTaskId(t.id);
             }}
-            className="flex-1"
+            className="flex-1 min-w-0"
             disabled={struck || isStriking}
             style={!struck && !isStriking ? { backgroundColor: buttonColor, color: 'white' } : undefined}
           >
@@ -932,11 +944,11 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     const taskContent = compact ? (
       <div 
         key={t.id} 
-        className={`p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer ${animationClass}`} 
+        className={`p-3 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer ${animationClass}`} 
         onClick={() => openTaskDetail(t)}
       >
         <div className="space-y-2">
-          <p className={`text-sm font-medium line-clamp-2 text-center transition-all duration-500 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
+          <p className={`text-sm font-medium line-clamp-2 transition-all duration-600 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
             {t.title}
           </p>
           {(t.dueDate || typeof t.dueHour === "number") && (
@@ -952,9 +964,9 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
               {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
             </div>
           )}
-          <div className="flex items-center gap-1 pt-1" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
             {renderStrikeButton(t)}
-            <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+            <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="shrink-0">
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -967,13 +979,13 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
         onClick={() => openTaskDetail(t)}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className={`text-sm sm:text-base text-center transition-all duration-500 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
+              <p className={`text-sm sm:text-base transition-all duration-600 ${t.completed || struck ? "line-through text-muted-foreground" : ""}`}>
                 {t.title}
               </p>
               {(t.dueDate || typeof t.dueHour === "number") && (
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground text-center">
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   Due {t.dueDate || `${t.dueHour}:00`}
                 </p>
               )}
@@ -983,16 +995,16 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                 </p>
               )}
               {t.tags && t.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                <div className="mt-2 flex flex-wrap gap-1">
                   {t.tags.map(tag => (
                     <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
                   ))}
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               {renderStrikeButton(t)}
-              <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+              <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="shrink-0">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -1033,47 +1045,37 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       <style jsx global>{`
         @keyframes strike-through {
           0% {
-            background-position: 0% 50%;
             background-size: 0% 2px;
+            background-position: 0% 50%;
           }
           100% {
-            background-position: 100% 50%;
             background-size: 100% 2px;
+            background-position: 100% 50%;
           }
         }
         
         .animate-strike {
-          animation: strike-through 0.6s ease-in-out;
+          animation: strike-through 0.6s ease-out forwards;
         }
         
         .animate-strike p {
           background: linear-gradient(to right, currentColor 0%, currentColor 100%) no-repeat;
-          background-size: 100% 2px;
-          background-position: 0 50%;
+          background-size: 0% 2px;
+          background-position: 0% 50%;
         }
       `}</style>
       
-      <Card className="w-full max-w-3xl">
+      <Card className="w-full">
         <CardHeader className={compact ? "pb-3" : ""}>
           <CardTitle className={`flex items-center justify-between text-xl`}>
             <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} title="Import data">
-                <Upload className="h-4 w-4" />
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleImport}
-                className="hidden"
-              />
-              <Button size="sm" variant="outline" onClick={handleExport} title="Export data">
-                <Download className="h-4 w-4" />
-              </Button>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button 
+                    size="sm"
+                    style={{ backgroundColor: buttonColor, color: 'white' }}
+                  >
                     <Plus className="mr-1 h-4 w-4" /> Add Task
                   </Button>
                 </DialogTrigger>
@@ -1494,30 +1496,26 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                   {showUpdateHistory ? (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold">Update History</h3>
+                        <h3 className="text-sm font-semibold">Strike Notes</h3>
                         <Button size="sm" variant="ghost" onClick={() => setShowUpdateHistory(false)}>
                           Back
                         </Button>
                       </div>
-                      {getTaskUpdates(detailTask.id).length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No updates recorded yet.</p>
+                      {getTaskStrikeNotes(detailTask.id).length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No strike notes recorded yet.</p>
                       ) : (
                         <div className="space-y-3">
-                          {getTaskUpdates(detailTask.id).map((update) => (
-                            <div key={update.updateId} className="p-3 border rounded-md bg-muted/30">
-                              <p className="text-xs text-muted-foreground mb-2">
-                                {new Date(update.timestamp).toLocaleString()}
-                              </p>
-                              <div className="space-y-1 text-sm">
-                                {Object.entries(update.diff).map(([key, change]) => (
-                                  <div key={key}>
-                                    <span className="font-medium">{key}:</span>{" "}
-                                    <span className="line-through text-muted-foreground">{JSON.stringify(change.old)}</span>
-                                    {" → "}
-                                    <span className="text-foreground">{JSON.stringify(change.new)}</span>
-                                  </div>
-                                ))}
+                          {getTaskStrikeNotes(detailTask.id).map((strike) => (
+                            <div key={strike.ts} className="p-3 border rounded-md bg-muted/30">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(strike.ts).toLocaleString()}
+                                </p>
+                                <span className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[10px]">
+                                  {strike.date}
+                                </span>
                               </div>
+                              <p className="text-sm">{strike.note}</p>
                             </div>
                           ))}
                         </div>
@@ -1592,14 +1590,14 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                           <p>Last updated: {new Date(detailTask.updatedAt).toLocaleString()}</p>
                           <p>Revision: {detailTask.revision}</p>
                         </div>
-                        {getTaskUpdates(detailTask.id).length > 0 && (
+                        {getTaskStrikeNotes(detailTask.id).length > 0 && (
                           <Button 
                             size="sm" 
                             variant="outline" 
                             onClick={() => setShowUpdateHistory(true)}
                             className="mt-2"
                           >
-                            <History className="h-4 w-4 mr-1" /> View Update History ({getTaskUpdates(detailTask.id).length})
+                            <History className="h-4 w-4 mr-1" /> View Strike Notes ({getTaskStrikeNotes(detailTask.id).length})
                           </Button>
                         )}
                       </div>
