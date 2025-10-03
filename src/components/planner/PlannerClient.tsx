@@ -311,7 +311,7 @@ export const PlannerClient = () => {
   };
 
   const renderTimeSlots = () => {
-    return HOURS.map(hour => {
+    return HOURS.flatMap(hour => {
       const slots = [
         { hour, minute: 0, label: `${hour}:00` },
         { hour, minute: 30, label: `${hour}:30` },
