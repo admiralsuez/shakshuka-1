@@ -1,17 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Counters } from "@/components/widgets/Counters";
 import { Tasks } from "@/components/tasks/Tasks";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";
 import { loadSettings, saveSettings } from "@/lib/local-storage";
 import { getQuirkyNickname, getGreeting } from "@/lib/quirky-nicknames";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"relaxed" | "compact">("relaxed");
   const [displayName, setDisplayName] = useState<string>("");
   const [greeting, setGreeting] = useState<string>("");
+  const tasksRef = useRef<{ openAddDialog: () => void } | null>(null);
+  const router = useRouter();
+
+  // Setup keyboard shortcuts
+  useKeyboardShortcuts({
+    n: () => {
+      // Open new task dialog
+      tasksRef.current?.openAddDialog();
+    },
+    p: () => {
+      // Navigate to planner
+      router.push("/planner");
+    }
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -73,7 +89,13 @@ export default function DashboardPage() {
               {greeting}{displayName && `, ${displayName}`}!
             </span>
           </h1>
-          <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Track your daily strikes, monitor progress, and manage tasks.</p>
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
+            Track your daily strikes, monitor progress, and manage tasks.
+            <span className="ml-2 text-[10px] sm:text-xs opacity-70">
+              Press <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground border text-[9px] sm:text-[10px]">N</kbd> for new task, 
+              <kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-muted-foreground border text-[9px] sm:text-[10px]">P</kbd> for planner
+            </span>
+          </p>
         </div>
       </div>
 
@@ -122,7 +144,7 @@ export default function DashboardPage() {
             </Button>
           </div>
         </div>
-        <Tasks compact={viewMode === "compact"} />
+        <Tasks ref={tasksRef} compact={viewMode === "compact"} />
       </section>
     </div>
   );

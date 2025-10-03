@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Search, X, Edit, Eye, History, Undo } from "lucide-react";
+import { Plus, Trash2, Search, X, Edit, Eye, History, Undo, Download, Upload } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -111,7 +111,118 @@ async function saveTasksAPI(tasks: Task[]): Promise<void> {
   }).catch(() => {});
 }
 
-export const Tasks = ({ compact = false }: { compact?: boolean }) => {
+// Helper to check and perform weekly auto-backup
+async function checkAndBackup(): Promise<void> {
+  try {
+    const lastBackup = localStorage.getItem("lastBackupDate");
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    
+    if (!lastBackup || (now - parseInt(lastBackup)) > oneWeek) {
+      const data = await exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      
+      // Save to localStorage as backup reference
+      localStorage.setItem("lastBackupDate", now.toString());
+      localStorage.setItem(`backup_${timestamp}`, JSON.stringify(data));
+      
+      console.log("Auto-backup completed:", timestamp);
+    }
+  } catch (error) {
+    console.error("Auto-backup failed:", error);
+  }
+}
+
+// Helper to sanitize and validate task input
+function sanitizeTaskInput(input: string, maxLength: number = 200): string {
+  // Strip HTML tags
+  let sanitized = input.replace(/<[^>]*>/g, '');
+  
+  // Trim whitespace
+  sanitized = sanitized.trim();
+  
+  // Limit length
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength);
+  }
+  
+  return sanitized;
+}
+
+function validateTaskInput(input: string): { valid: boolean; error?: string } {
+  const trimmed = input.trim();
+  
+  if (trimmed.length === 0) {
+    return { valid: false, error: "Task title cannot be empty" };
+  }
+  
+  if (trimmed.length > 200) {
+    return { valid: false, error: "Task title must be 200 characters or less" };
+  }
+  
+  return { valid: true };
+}
+
+// Add export/import helper functions after saveTasksAPI
+async function exportData() {
+  try {
+    const [tasks, settings, strikes, updates, usedMessages] = await Promise.all([
+      (await isTauri()) ? fetchTasksTauri() : fetchTasksAPI(),
+      loadSettings(),
+      loadStrikes(),
+      loadUpdates(),
+      loadUsedMessages()
+    ]);
+    
+    const exportData = {
+      version: "1.0",
+      exportedAt: new Date().toISOString(),
+      tasks,
+      settings,
+      strikes,
+      updates,
+      usedMessages
+    };
+    
+    return exportData;
+  } catch (error) {
+    console.error("Export failed:", error);
+    throw error;
+  }
+}
+
+async function importData(data: any): Promise<void> {
+  try {
+    // Validate import data
+    if (!data || !data.version || !Array.isArray(data.tasks)) {
+      throw new Error("Invalid import data format");
+    }
+    
+    // Import tasks
+    if ((await isTauri())) {
+      await saveTasksTauri(data.tasks);
+    } else {
+      await saveTasksAPI(data.tasks);
+    }
+    
+    // Import other data
+    if (data.settings) await saveSettings(data.settings);
+    if (data.strikes) await saveStrikes(data.strikes);
+    if (data.updates) await saveUpdates(data.updates);
+    if (data.usedMessages) await saveUsedMessages(data.usedMessages);
+    
+  } catch (error) {
+    console.error("Import failed:", error);
+    throw error;
+  }
+}
+
+export interface TasksHandle {
+  openAddDialog: () => void;
+}
+
+export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact = false }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -174,13 +285,17 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
   const [setupResetHour, setSetupResetHour] = useState(9);
   const [setupFavoriteColor, setSetupFavoriteColor] = useState("#007AFF");
 
+  // Add button color state
+  const [buttonColor, setButtonColor] = useState("#007AFF");
+  
+  // Add import/export state
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   
-  // Add button color state
-  const [buttonColor, setButtonColor] = useState("#007AFF");
-
   // Load once - check for first-time setup
   useEffect(() => {
     let mounted = true;
@@ -242,6 +357,9 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
         // First time - set today as last recap date
         localStorage.setItem("lastRecapDate", todayStr);
       }
+      
+      // Check and perform auto-backup
+      await checkAndBackup();
     })();
     return () => {
       mounted = false;
@@ -500,20 +618,83 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     };
   }, [strikes, todayStr, activeTasks, completedTasks]);
 
-  // Add task
+  // Add export handler
+  const handleExport = async () => {
+    try {
+      const data = await exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `shakshuka-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Data exported successfully!");
+      setShowExportDialog(false);
+    } catch (error) {
+      toast.error("Export failed. Please try again.");
+    }
+  };
+
+  // Add import handler
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      await importData(data);
+      
+      // Reload all data
+      const [newSettings, newStrikes, newUpdates, newUsedMessages, newTasks] = await Promise.all([
+        loadSettings(),
+        loadStrikes(),
+        loadUpdates(),
+        loadUsedMessages(),
+        useTauriRef.current ? fetchTasksTauri() : fetchTasksAPI(),
+      ]);
+      
+      setResetHour(newSettings.resetHour);
+      setTimezone(newSettings.timezone);
+      setButtonColor(newSettings.buttonColor || "#007AFF");
+      setStrikes(newStrikes);
+      setUpdates(newUpdates);
+      setUsedMessageIds(newUsedMessages);
+      setTasks(newTasks);
+      
+      toast.success("Data imported successfully! Page will reload.");
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      toast.error("Import failed. Please check the file format.");
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Add task with validation
   const addTask = () => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
+    const sanitized = sanitizeTaskInput(title);
+    const validation = validateTaskInput(sanitized);
+    
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid task");
+      return;
+    }
+    
     const tags = tagsInput
       .split(",")
-      .map(t => t.trim().toLowerCase())
+      .map(t => sanitizeTaskInput(t, 50))
       .filter(Boolean);
     const now = Date.now();
     const newTask: Task = {
       id: generateUUID(),
       revision: 0,
-      title: trimmed,
-      notes: notes.trim() || undefined,
+      title: sanitized,
+      notes: sanitizeTaskInput(notes, 1000) || undefined,
       completed: false,
       createdAt: now,
       updatedAt: now,
@@ -557,24 +738,29 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     setEditTagsInput("");
   };
 
-  // Save edited task with update tracking
+  // Save edited task with validation and update tracking
   const saveEditedTask = async () => {
     if (!detailTaskId) return;
-    const trimmedTitle = editTitle.trim();
-    if (!trimmedTitle) return;
+    const sanitized = sanitizeTaskInput(editTitle);
+    const validation = validateTaskInput(sanitized);
+    
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid task");
+      return;
+    }
 
     const oldTask = tasks.find(t => t.id === detailTaskId);
     if (!oldTask) return;
 
     const tags = editTagsInput
       .split(",")
-      .map(t => t.trim().toLowerCase())
+      .map(t => sanitizeTaskInput(t, 50))
       .filter(Boolean);
 
     const newTask: Task = {
       ...oldTask,
-      title: trimmedTitle,
-      notes: editNotes.trim() || undefined,
+      title: sanitized,
+      notes: sanitizeTaskInput(editNotes, 1000) || undefined,
       dueDate: editDueDate || undefined,
       tags: tags.length ? tags : undefined,
       revision: oldTask.revision + 1,
@@ -834,6 +1020,14 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
     toast.success("Welcome! Your preferences have been saved.");
   };
 
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    openAddDialog: () => {
+      setAddOpen(true);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }));
+
   return (
     <>
       <style jsx global>{`
@@ -864,6 +1058,19 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
           <CardTitle className={`flex items-center justify-between text-xl`}>
             <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
             <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} title="Import data">
+                <Upload className="h-4 w-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+              <Button size="sm" variant="outline" onClick={handleExport} title="Export data">
+                <Download className="h-4 w-4" />
+              </Button>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
@@ -1416,4 +1623,6 @@ export const Tasks = ({ compact = false }: { compact?: boolean }) => {
       </Card>
     </>
   );
-};
+});
+
+Tasks.displayName = "Tasks";
