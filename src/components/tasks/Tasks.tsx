@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Search, X, Edit, Eye, History, Undo, Download, Upload } from "lucide-react";
+import { Plus, Trash2, Search, X, Edit, Eye, History, Undo, Download, Upload, RotateCcw } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -244,6 +244,10 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const [strikeTaskId, setStrikeTaskId] = useState<string | null>(null);
   const [strikeNote, setStrikeNote] = useState("");
 
+  // Try Again dialog state for expired tasks
+  const [tryAgainTaskId, setTryAgainTaskId] = useState<string | null>(null);
+  const [tryAgainNewDate, setTryAgainNewDate] = useState<string>("");
+
   // settings/strikes in memory for quick checks
   const [resetHour, setResetHour] = useState<number>(9);
   const [timezone, setTimezone] = useState<string>("UTC");
@@ -306,6 +310,25 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   
   // Add active tab state for animation
   const [activeTab, setActiveTab] = useState<"active" | "expired" | "completed">("active");
+
+  // Helper function to calculate relative date
+  const getRelativeDateText = (dueDate: string): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "due today";
+    if (diffDays === 1) return "due tomorrow";
+    if (diffDays === -1) return "was due yesterday";
+    if (diffDays > 1) return `due in ${diffDays} days`;
+    if (diffDays < -1) return `${Math.abs(diffDays)} days overdue`;
+    return dueDate;
+  };
 
   // Load once - check for first-time setup
   useEffect(() => {
@@ -606,6 +629,41 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     if (!detailTaskId) return null;
     return tasks.find(t => t.id === detailTaskId) || null;
   }, [detailTaskId, tasks]);
+
+  // Handle Try Again for expired tasks
+  const onTryAgain = (taskId: string) => {
+    setTryAgainTaskId(taskId);
+    const task = tasks.find(t => t.id === taskId);
+    if (task?.dueDate) {
+      setTryAgainNewDate(task.dueDate);
+    } else {
+      // Default to tomorrow if no current due date
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setTryAgainNewDate(tomorrow.toISOString().split('T')[0]);
+    }
+  };
+
+  const saveTryAgain = async () => {
+    if (!tryAgainTaskId || !tryAgainNewDate) return;
+    
+    const oldTask = tasks.find(t => t.id === tryAgainTaskId);
+    if (!oldTask) return;
+
+    const newTask: Task = {
+      ...oldTask,
+      dueDate: tryAgainNewDate,
+      revision: oldTask.revision + 1,
+      updatedAt: Date.now()
+    };
+
+    await recordUpdate(oldTask, newTask);
+    
+    setTasks(prev => prev.map(t => t.id === tryAgainTaskId ? newTask : t));
+    setTryAgainTaskId(null);
+    setTryAgainNewDate("");
+    toast.success("Task deadline updated! Task moved to active.");
+  };
 
   // Check if all active tasks are struck - only trigger on transition AND after user action
   useEffect(() => {
@@ -982,10 +1040,28 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   };
 
   // Render task with Strike/View Update button
-  const renderStrikeButton = (t: Task) => {
+  const renderStrikeButton = (t: Task, isExpired: boolean = false) => {
     const struck = struckTodayIds.has(t.id);
     const isStriking = strikingTaskId === t.id;
     const strikeNotes = getTaskStrikeNotes(t.id);
+    
+    // Show "Try Again" for expired tasks
+    if (isExpired) {
+      return (
+        <Button 
+          size="sm" 
+          variant="secondary"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTryAgain(t.id);
+          }}
+          className="flex-1 min-w-0"
+          style={{ backgroundColor: buttonColor, color: 'white' }}
+        >
+          <RotateCcw className="h-4 w-4 mr-1" /> Try Again
+        </Button>
+      );
+    }
     
     if (struck && strikeNotes.length > 0) {
       return (
@@ -1051,7 +1127,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   };
 
   // Render task card/item with click handler and animation
-  const renderTaskItem = (t: Task, struck: boolean, compact: boolean) => {
+  const renderTaskItem = (t: Task, struck: boolean, compact: boolean, isExpired: boolean = false) => {
     const isStriking = strikingTaskId === t.id;
     const animationClass = isStriking ? "animate-strike" : "";
     
@@ -1067,8 +1143,8 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
             {t.title}
           </p>
           {(t.dueDate || typeof t.dueHour === "number") && (
-            <p className="text-xs text-muted-foreground">
-              Due: {t.dueDate || `${t.dueHour}:00`}
+            <p className="text-xs text-muted-foreground" title={t.dueDate || `${t.dueHour}:00`}>
+              {t.dueDate ? getRelativeDateText(t.dueDate) : `Due: ${t.dueHour}:00`}
             </p>
           )}
           {t.projects && t.projects.length > 0 && (
@@ -1080,7 +1156,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
             </div>
           )}
           <div className="flex items-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
-            {renderStrikeButton(t)}
+            {renderStrikeButton(t, isExpired)}
             <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="shrink-0">
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -1101,8 +1177,8 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                 {t.title}
               </p>
               {(t.dueDate || typeof t.dueHour === "number") && (
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-                  Due {t.dueDate || `${t.dueHour}:00`}
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground" title={t.dueDate || `${t.dueHour}:00`}>
+                  {t.dueDate ? getRelativeDateText(t.dueDate) : `Due ${t.dueHour}:00`}
                 </p>
               )}
               {t.notes && (
@@ -1119,7 +1195,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
               )}
             </div>
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-              {renderStrikeButton(t)}
+              {renderStrikeButton(t, isExpired)}
               <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task" className="shrink-0">
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -1282,6 +1358,42 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
               </div>
             )}
           </div>
+
+          {/* Try Again Dialog */}
+          <Dialog open={!!tryAgainTaskId} onOpenChange={(open) => { if (!open) { setTryAgainTaskId(null); setTryAgainNewDate(""); } }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Update Deadline</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  Choose a new deadline for this task to move it back to active tasks.
+                </p>
+                <div className="grid gap-2">
+                  <Label htmlFor="try-again-date">New Due Date</Label>
+                  <Input
+                    id="try-again-date"
+                    type="date"
+                    value={tryAgainNewDate}
+                    onChange={(e) => setTryAgainNewDate(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="secondary" onClick={() => { setTryAgainTaskId(null); setTryAgainNewDate(""); }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={saveTryAgain} 
+                  disabled={!tryAgainNewDate}
+                  style={{ backgroundColor: buttonColor, color: 'white' }}
+                >
+                  Update & Activate
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* First-Time Setup Dialog */}
           <Dialog open={showSetupDialog} onOpenChange={(open) => { if (!open && showSetupDialog) return; setShowSetupDialog(open); }}>
@@ -1501,7 +1613,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       )}
                       {activeFiltered.map((t) => {
                         const struck = struckTodayIds.has(t.id);
-                        return renderTaskItem(t, struck, true);
+                        return renderTaskItem(t, struck, true, false);
                       })}
                     </div>
                   ) : (
@@ -1511,7 +1623,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       )}
                       {activeFiltered.map((t) => {
                         const struck = struckTodayIds.has(t.id);
-                        return renderTaskItem(t, struck, false);
+                        return renderTaskItem(t, struck, false, false);
                       })}
                     </ul>
                   )}
@@ -1527,7 +1639,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       )}
                       {expiredFiltered.map((t) => {
                         const struck = struckTodayIds.has(t.id);
-                        return renderTaskItem(t, struck, true);
+                        return renderTaskItem(t, struck, true, true);
                       })}
                     </div>
                   ) : (
@@ -1537,7 +1649,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       )}
                       {expiredFiltered.map((t) => {
                         const struck = struckTodayIds.has(t.id);
-                        return renderTaskItem(t, struck, false);
+                        return renderTaskItem(t, struck, false, true);
                       })}
                     </ul>
                   )}
