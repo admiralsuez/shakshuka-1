@@ -9,7 +9,11 @@ import { Play, Pause, RotateCcw } from "lucide-react";
 const DEFAULT_WORK_TIME = 25; // minutes
 const DEFAULT_BREAK_TIME = 5; // minutes
 
-export function PomodoroTimer() {
+interface PomodoroTimerProps {
+  mini?: boolean;
+}
+
+export function PomodoroTimer({ mini = false }: PomodoroTimerProps) {
   const [workMinutes, setWorkMinutes] = useState(DEFAULT_WORK_TIME);
   const [breakMinutes, setBreakMinutes] = useState(DEFAULT_BREAK_TIME);
   const [seconds, setSeconds] = useState(DEFAULT_WORK_TIME * 60);
