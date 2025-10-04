@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         and(
           sql`${tasks.dueHour} IS NOT NULL`,
           sql`${tasks.dueHour} <= ${currentHour}`,
-          eq(tasks.isCompleted, 0),
+          eq(tasks.completed, 0),
           sql`${tasks.id} NOT IN (
             SELECT task_id FROM ${strikes} 
             WHERE date = ${todayDate}
