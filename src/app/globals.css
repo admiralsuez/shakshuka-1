@@ -143,6 +143,21 @@
   
   button[data-strike-button]:not(:disabled):hover {
     animation: slow-strike-pulse 2s ease-in-out infinite;
+    position: relative;
+  }
+  
+  /* Strikethrough animation on button hover */
+  button[data-strike-button]:not(:disabled):hover::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    height: 2px;
+    width: 0%;
+    background: currentColor;
+    animation: strike-through 1.2s ease-in-out forwards;
+    pointer-events: none;
   }
 }
 
