@@ -580,7 +580,7 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
           
           {/* Pomodoro timer (conditional) */}
-          {showPomodoro && <PomodoroTimer mini />}
+          {showPomodoro && <PomodoroTimer />}
           
           {/* View mode toggle buttons */}
           <div className="flex items-center gap-1 rounded-md border bg-card p-1">
