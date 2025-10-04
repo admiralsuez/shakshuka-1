@@ -286,6 +286,7 @@ export default function SettingsPage() {
   const [totalSize, setTotalSize] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showExperimentalDialog, setShowExperimentalDialog] = useState(false);
+  const [experimentalTaskEntry, setExperimentalTaskEntry] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -501,37 +502,79 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
+    <div className="relative mx-auto w-full max-w-5xl p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 overflow-hidden">
+      
+      {/* Decorative gradients */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-purple-50/50 to-pink-50/50"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-50/30 via-purple-50/30 to-pink-50/30"></div>
+      </div>
+
       <h1 className="text-2xl font-semibold">Settings</h1>
       
+      {/* Experimental Features */}
+      <section 
+        className="rounded-xl border bg-card shadow-sm animate-in fade-in-50 slide-in-from-bottom-4 p-3 sm:p-4 md:p-6"
+        style={{
+          background: 'linear-gradient(to bottom right, oklch(0.74 0.2 310 / 0.1), oklch(0.72 0.15 160 / 0.1), oklch(0.7 0.11 35 / 0.1))'
+        }}
+      >
+        <h2 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+          <span className="inline-block h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.74 0.2 310)' }} />
+          Experimental Features
+        </h2>
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="experimental-task-entry">Experimental Task Entry</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setShowExperimentalDialog(true)}
+              >
+                <span className="text-lg">ℹ️</span>
+              </Button>
+            </div>
+            <input
+              type="checkbox"
+              id="experimental-task-entry"
+              checked={experimentalTaskEntry}
+              onChange={(e) => handleExperimentalToggle(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Experimental Task Entry Dialog */}
       <Dialog open={showExperimentalDialog} onOpenChange={setShowExperimentalDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>🧪 Experimental Task Entry</DialogTitle>
-            <DialogDescription className="space-y-3 pt-2">
-              <p>
-                When enabled, the <strong>first word</strong> of any task becomes a tag automatically when you type a space.
-              </p>
-              <div className="bg-muted p-3 rounded-md space-y-2">
-                <p className="text-sm font-medium">Example:</p>
-                <p className="text-sm">
-                  Type: <code className="bg-background px-1 py-0.5 rounded">strawb creators</code>
-                </p>
-                <p className="text-sm">
-                  Result: Tag <code className="bg-background px-1 py-0.5 rounded">#strawb</code>, Title <code className="bg-background px-1 py-0.5 rounded">creators</code>
-                </p>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                This feature is experimental and can be disabled at any time from the settings page.
-              </p>
-            </DialogDescription>
+            <DialogTitle>Experimental Task Entry</DialogTitle>
           </DialogHeader>
-          <div className="flex justify-end">
-            <Button onClick={() => setShowExperimentalDialog(false)}>
-              Got it!
-            </Button>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              When enabled, the first word you type becomes a project automatically when you press space.
+            </p>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Example:</p>
+              <div className="p-3 rounded-md bg-muted">
+                <p className="text-sm">You type: <span className="font-mono">strawb creators</span></p>
+                <p className="text-sm mt-2">Result:</p>
+                <p className="text-sm">• Project: <span className="font-semibold">#strawb</span></p>
+                <p className="text-sm">• Title: <span className="font-semibold">creators</span></p>
+              </div>
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              You can always add more projects manually after the task is created.
+            </p>
           </div>
+          <DialogFooter>
+            <Button onClick={() => setShowExperimentalDialog(false)}>Got it</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       
@@ -689,42 +732,6 @@ export default function SettingsPage() {
             </div>
             <p className="text-xs text-muted-foreground">
               Display a mini pomodoro timer on the dashboard.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Experimental Features</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 max-w-xs">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="experimentalTaskEntry"
-                  checked={settings.experimentalTaskEntry === true}
-                  onChange={(e) => handleExperimentalToggle(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
-                />
-                <Label htmlFor="experimentalTaskEntry" className="cursor-pointer">
-                  Experimental Task Entry
-                </Label>
-              </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                onClick={() => setShowExperimentalDialog(true)}
-                aria-label="View explanation"
-              >
-                <Info className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              First word of task becomes a tag automatically when you type a space.
             </p>
           </div>
         </CardContent>

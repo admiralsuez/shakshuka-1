@@ -356,9 +356,18 @@ export const PlannerClient = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{st.task.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {st.durationMinutes} min
-                        </p>
+                        {st.task.projects && st.task.projects.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {st.task.projects.slice(0, 2).map(project => (
+                              <span
+                                key={project}
+                                className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent text-accent-foreground"
+                              >
+                                #{project}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <Button
                         size="sm"
@@ -426,14 +435,14 @@ export const PlannerClient = () => {
                 <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{task.title}</p>
-                  {task.tags && task.tags.length > 0 && (
+                  {task.projects && task.projects.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {task.tags.slice(0, 2).map(tag => (
+                      {task.projects.slice(0, 2).map(project => (
                         <span
-                          key={tag}
+                          key={project}
                           className="px-1.5 py-0.5 text-[10px] rounded-full bg-accent text-accent-foreground"
                         >
-                          #{tag}
+                          #{project}
                         </span>
                       ))}
                     </div>

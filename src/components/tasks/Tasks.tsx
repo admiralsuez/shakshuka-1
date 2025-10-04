@@ -27,7 +27,7 @@ export type Task = {
   createdAt: number;
   updatedAt: number; // for conflict resolution
   dueHour?: number; // 0-23 optional daily deadline
-  tags?: string[];
+  projects?: string[];
   dueDate?: string; // YYYY-MM-DD in user TZ
 };
 
@@ -229,7 +229,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<string>("");
-  const [tagsInput, setTagsInput] = useState<string>("");
+  const [projectsInput, setProjectsInput] = useState<string>("");
   // Add Task dialog state
   const [addOpen, setAddOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -250,6 +250,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
 
   // Add experimental task entry state
   const [experimentalTaskEntry, setExperimentalTaskEntry] = useState(false);
+  const [hasExtractedProject, setHasExtractedProject] = useState(false); // NEW: Track if project was extracted
 
   // Add updates state
   const [updates, setUpdates] = useState<TaskUpdate[]>([]);
@@ -300,7 +301,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
 
   // search & filter - now inline above tabs
   const [query, setQuery] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   
   // Load once - check for first-time setup
   useEffect(() => {
@@ -572,11 +573,11 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     await saveUpdates(newUpdates);
   };
 
-  // searchable tag list
-  const allTags = useMemo(() => {
+  // searchable project list
+  const allProjects = useMemo(() => {
     const set = new Set<string>();
     for (const t of tasks) {
-      t.tags?.forEach(tag => set.add(tag));
+      t.projects?.forEach(project => set.add(project));
     }
     return Array.from(set).sort();
   }, [tasks]);
@@ -584,17 +585,17 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const matchesTask = (t: Task) => {
     const q = query.trim().toLowerCase();
     const textOk = q
-      ? t.title.toLowerCase().includes(q) || (t.notes?.toLowerCase().includes(q) ?? false) || (t.tags?.some(tag => tag.includes(q)) ?? false)
+      ? t.title.toLowerCase().includes(q) || (t.notes?.toLowerCase().includes(q) ?? false) || (t.projects?.some(project => project.includes(q)) ?? false)
       : true;
-    const tagsOk = selectedTags.length
-      ? (t.tags ? selectedTags.every(tag => t.tags!.includes(tag)) : false)
+    const projectsOk = selectedProjects.length
+      ? (t.projects ? selectedProjects.every(project => t.projects!.includes(project)) : false)
       : true;
-    return textOk && tagsOk;
+    return textOk && projectsOk;
   };
 
-  const activeFiltered = useMemo(() => activeTasks.filter(matchesTask), [activeTasks, query, selectedTags]);
-  const expiredFiltered = useMemo(() => expiredTasks.filter(matchesTask), [expiredTasks, query, selectedTags]);
-  const completedFiltered = useMemo(() => completedTasks.filter(matchesTask), [completedTasks, query, selectedTags]);
+  const activeFiltered = useMemo(() => activeTasks.filter(matchesTask), [activeTasks, query, selectedProjects]);
+  const expiredFiltered = useMemo(() => expiredTasks.filter(matchesTask), [expiredTasks, query, selectedProjects]);
+  const completedFiltered = useMemo(() => completedTasks.filter(matchesTask), [completedTasks, query, selectedProjects]);
 
   // Get the task being viewed/edited
   const detailTask = useMemo(() => {
@@ -708,32 +709,35 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Handle experimental task entry input
+  // Handle experimental task entry input - FIXED VERSION
   const handleTitleChange = (value: string) => {
     if (!experimentalTaskEntry) {
       setTitle(value);
       return;
     }
 
-    // Check if user just typed a space after the first word
+    // Only extract project on FIRST space
     const hasSpace = value.includes(" ");
-    const currentTagsArray = tagsInput.split(",").map(t => t.trim()).filter(Boolean);
     
-    if (hasSpace && !title.includes(" ")) {
-      // Just added first space - extract first word as tag
+    if (hasSpace && !hasExtractedProject) {
+      // Just added first space - extract first word as project
       const parts = value.trim().split(/\s+/);
       const firstWord = parts[0];
       const rest = parts.slice(1).join(" ");
       
-      // Add first word as tag if not already present
-      if (firstWord && !currentTagsArray.includes(firstWord)) {
-        const newTags = [...currentTagsArray, firstWord].join(", ");
-        setTagsInput(newTags);
+      const currentProjectsArray = projectsInput.split(",").map(t => t.trim()).filter(Boolean);
+      
+      // Add first word as project if not already present
+      if (firstWord && !currentProjectsArray.includes(firstWord)) {
+        const newProjects = [...currentProjectsArray, firstWord].join(", ");
+        setProjectsInput(newProjects);
       }
       
       // Set title to remaining text
       setTitle(rest);
+      setHasExtractedProject(true); // Mark as extracted
     } else {
+      // Normal typing - just update title
       setTitle(value);
     }
   };
@@ -748,7 +752,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       return;
     }
     
-    const tags = tagsInput
+    const projects = projectsInput
       .split(",")
       .map(t => sanitizeTaskInput(t, 50))
       .filter(Boolean);
@@ -762,13 +766,14 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       createdAt: now,
       updatedAt: now,
       ...(dueDate ? { dueDate } : {}),
-      ...(tags.length ? { tags } : {}),
+      ...(projects.length ? { projects } : {}),
     };
     setTasks(prev => [newTask, ...prev]);
     setTitle("");
     setNotes("");
     setDueDate("");
-    setTagsInput("");
+    setProjectsInput("");
+    setHasExtractedProject(false); // Reset for next task
     setAddOpen(false);
     inputRef.current?.focus();
   };
@@ -788,7 +793,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     setEditTitle(task.title);
     setEditNotes(task.notes || "");
     setEditDueDate(task.dueDate || "");
-    setEditTagsInput(task.tags?.join(", ") || "");
+    setEditTagsInput(task.projects?.join(", ") || "");
   };
 
   // Close task detail dialog
@@ -815,7 +820,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     const oldTask = tasks.find(t => t.id === detailTaskId);
     if (!oldTask) return;
 
-    const tags = editTagsInput
+    const projects = editTagsInput
       .split(",")
       .map(t => sanitizeTaskInput(t, 50))
       .filter(Boolean);
@@ -825,7 +830,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       title: sanitized,
       notes: sanitizeTaskInput(editNotes, 1000) || undefined,
       dueDate: editDueDate || undefined,
-      tags: tags.length ? tags : undefined,
+      projects: projects.length ? projects : undefined,
       revision: oldTask.revision + 1,
       updatedAt: Date.now()
     };
@@ -1062,12 +1067,12 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
               Due: {t.dueDate || `${t.dueHour}:00`}
             </p>
           )}
-          {t.tags && t.tags.length > 0 && (
+          {t.projects && t.projects.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {t.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+              {t.projects.slice(0, 2).map(project => (
+                <span key={project} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
               ))}
-              {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
+              {t.projects.length > 2 && <span className="text-xs text-muted-foreground">+{t.projects.length - 2}</span>}
             </div>
           )}
           <div className="flex items-center gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
@@ -1101,10 +1106,10 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                   {t.notes}
                 </p>
               )}
-              {t.tags && t.tags.length > 0 && (
+              {t.projects && t.projects.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {t.tags.map(tag => (
-                    <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                  {t.projects.map(project => (
+                    <span key={project} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
                   ))}
                 </div>
               )}
@@ -1173,14 +1178,14 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       <Input
                         id="task-title"
                         ref={inputRef}
-                        placeholder={experimentalTaskEntry ? "tag rest of task..." : "Task title"}
+                        placeholder={experimentalTaskEntry ? "project rest of task..." : "Task title"}
                         value={title}
                         onChange={(e) => handleTitleChange(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
                       />
                       {experimentalTaskEntry && (
                         <p className="text-xs text-muted-foreground">
-                          💡 First word becomes a tag when you type a space
+                          💡 First word becomes a project when you type a space
                         </p>
                       )}
                     </div>
@@ -1206,12 +1211,12 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="task-tags" className="text-sm text-muted-foreground">Tags (comma-separated)</Label>
+                      <Label htmlFor="task-projects" className="text-sm text-muted-foreground">Projects (comma-separated)</Label>
                       <Input
-                        id="task-tags"
+                        id="task-projects"
                         placeholder="e.g. work, urgent, home"
-                        value={tagsInput}
-                        onChange={(e) => setTagsInput(e.target.value)}
+                        value={projectsInput}
+                        onChange={(e) => setProjectsInput(e.target.value)}
                       />
                     </div>
                   </div>
@@ -1248,27 +1253,27 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                 )}
               </div>
             </div>
-            {allTags.length > 0 && (
+            {allProjects.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Filter by tags:</Label>
+                <Label className="text-xs text-muted-foreground">Filter by projects:</Label>
                 <div className="flex flex-wrap gap-2">
-                  {allTags.map(tag => {
-                    const active = selectedTags.includes(tag);
+                  {allProjects.map(project => {
+                    const active = selectedProjects.includes(project);
                     return (
                       <Button
-                        key={tag}
+                        key={project}
                         size="sm"
                         variant={active ? "default" : "outline"}
-                        onClick={() => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                        onClick={() => setSelectedProjects(prev => prev.includes(project) ? prev.filter(p => p !== project) : [...prev, project])}
                         className="h-7 rounded-full"
                       >
-                        #{tag}
+                        #{project}
                       </Button>
                     );
                   })}
                 </div>
-                {selectedTags.length > 0 && (
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedTags([])} className="h-7">Clear tags</Button>
+                {selectedProjects.length > 0 && (
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedProjects([])} className="h-7">Clear projects</Button>
                 )}
               </div>
             )}
@@ -1496,12 +1501,12 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                     <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
                       <div className="space-y-2">
                         <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground text-center">{t.title}</p>
-                        {t.tags && t.tags.length > 0 && (
+                        {t.projects && t.projects.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {t.tags.slice(0, 2).map(tag => (
-                              <span key={tag} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                            {t.projects.slice(0, 2).map(project => (
+                              <span key={project} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
                             ))}
-                            {t.tags.length > 2 && <span className="text-xs text-muted-foreground">+{t.tags.length - 2}</span>}
+                            {t.projects.length > 2 && <span className="text-xs text-muted-foreground">+{t.projects.length - 2}</span>}
                           </div>
                         )}
                         <div className="flex items-center justify-end pt-1" onClick={(e) => e.stopPropagation()}>
@@ -1527,10 +1532,10 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                             {t.notes && (
                               <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
                             )}
-                            {t.tags && t.tags.length > 0 && (
+                            {t.projects && t.projects.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-1 justify-center">
-                                {t.tags.map(tag => (
-                                  <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{tag}</span>
+                                {t.projects.map(project => (
+                                  <span key={project} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
                                 ))}
                               </div>
                             )}
@@ -1646,12 +1651,12 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                             <p className="text-sm mt-1">{detailTask.notes}</p>
                           </div>
                         )}
-                        {detailTask.tags && detailTask.tags.length > 0 && (
+                        {detailTask.projects && detailTask.projects.length > 0 && (
                           <div className="mt-3">
-                            <Label className="text-xs text-muted-foreground">Tags:</Label>
+                            <Label className="text-xs text-muted-foreground">Projects:</Label>
                             <div className="flex flex-wrap gap-2 mt-1">
-                              {detailTask.tags.map(tag => (
-                                <span key={tag} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">#{tag}</span>
+                              {detailTask.projects.map(project => (
+                                <span key={project} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">#{project}</span>
                               ))}
                             </div>
                           </div>
