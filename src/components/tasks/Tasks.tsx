@@ -894,6 +894,8 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     // Dispatch custom event to stop pomodoro timer
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("task-struck"));
+      // Dispatch custom event to refresh counters
+      window.dispatchEvent(new CustomEvent("strikes-updated"));
     }
     
     // Show undo toast for 10 seconds - pass the timestamp
@@ -923,6 +925,11 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     
     // Set user action flag
     userActionRef.current = true;
+    
+    // Dispatch custom event to refresh counters
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("strikes-updated"));
+    }
   };
 
   // Render task with Strike/View Update button

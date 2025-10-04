@@ -45,6 +45,7 @@ export const Counters = ({ compact = false }: { compact?: boolean }) => {
   const [timezone, setTimezone] = useState<string>("UTC");
   const [resetHour, setResetHour] = useState<number>(9);
 
+  // Load initial data
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -56,6 +57,18 @@ export const Counters = ({ compact = false }: { compact?: boolean }) => {
       setTasks(t);
     })();
     return () => { mounted = false; };
+  }, []);
+
+  // Listen for strikes-updated events and refresh data
+  useEffect(() => {
+    const handleStrikesUpdated = async () => {
+      const [st, t] = await Promise.all([loadStrikes(), loadTasks()]);
+      setStrikes(st);
+      setTasks(t);
+    };
+
+    window.addEventListener("strikes-updated", handleStrikesUpdated);
+    return () => window.removeEventListener("strikes-updated", handleStrikesUpdated);
   }, []);
 
   const now = new Date();
