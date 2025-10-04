@@ -1115,44 +1115,6 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
 
   return (
     <>
-      <style jsx global>{`
-        @keyframes strike-through {
-          0% {
-            background-size: 0% 2px;
-            background-position: 0% 50%;
-          }
-          100% {
-            background-size: 100% 2px;
-            background-position: 100% 50%;
-          }
-        }
-        
-        @keyframes slow-strike-pulse {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-          }
-          50% {
-            transform: scale(1.05);
-            box-shadow: 0 0 8px 2px rgba(0, 122, 255, 0.3);
-          }
-        }
-        
-        .animate-strike {
-          animation: strike-through 1.2s ease-in-out forwards;
-        }
-        
-        .animate-strike p {
-          background: linear-gradient(to right, currentColor 0%, currentColor 100%) no-repeat;
-          background-size: 0% 2px;
-          background-position: 0% 50%;
-        }
-        
-        button[data-strike-button]:not(:disabled):hover {
-          animation: slow-strike-pulse 2s ease-in-out infinite;
-        }
-      `}</style>
-      
       <Card className="w-full">
         <CardHeader className={compact ? "pb-3" : ""}>
           <CardTitle className={`flex items-center justify-between text-xl`}>
