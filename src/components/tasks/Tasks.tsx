@@ -821,6 +821,12 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     
     setStrikes(newStrikes);
     await saveStrikes(newStrikes);
+    
+    // Dispatch event to refresh counters
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("strikes-updated"));
+    }
+    
     toast.success("Strike undone successfully");
   };
 
@@ -968,6 +974,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
             className="flex-1 min-w-0"
             disabled={struck || isStriking}
             style={!struck && !isStriking ? { backgroundColor: buttonColor, color: 'white' } : undefined}
+            data-strike-button={!struck && !isStriking ? "true" : undefined}
           >
             {isStriking ? "Striking..." : "Strike"}
           </Button>
@@ -1120,6 +1127,17 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
           }
         }
         
+        @keyframes slow-strike-pulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 8px 2px rgba(0, 122, 255, 0.3);
+          }
+        }
+        
         .animate-strike {
           animation: strike-through 1.2s ease-in-out forwards;
         }
@@ -1128,6 +1146,10 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
           background: linear-gradient(to right, currentColor 0%, currentColor 100%) no-repeat;
           background-size: 0% 2px;
           background-position: 0% 50%;
+        }
+        
+        button[data-strike-button]:not(:disabled):hover {
+          animation: slow-strike-pulse 2s ease-in-out infinite;
         }
       `}</style>
       
