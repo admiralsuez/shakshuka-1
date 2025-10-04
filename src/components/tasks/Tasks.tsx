@@ -1448,7 +1448,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                 className="absolute h-[calc(100%-8px)] rounded-sm bg-background shadow-sm"
                 initial={false}
                 animate={{
-                  x: activeTab === "active" ? 4 : activeTab === "expired" ? "calc(33.33% + 2px)" : "calc(66.66%)",
+                  left: activeTab === "active" ? "4px" : activeTab === "expired" ? "calc(33.33% + 2px)" : "calc(66.66%)",
                   width: "calc(33.33% - 8px)"
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
