@@ -7,11 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { loadSettings, saveSettings, type AppSettings, loadStrikes, loadUpdates, loadUsedMessages, saveStrikes, saveUpdates, saveUsedMessages } from "@/lib/local-storage";
 import { toast } from "sonner";
-import { Download, Upload, RefreshCw } from "lucide-react";
+import { Download, Upload, RefreshCw, Info } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { readTextFile, writeTextFile, exists, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * ============================================================================
@@ -278,6 +285,7 @@ export default function SettingsPage() {
   const [updating, setUpdating] = useState(false);
   const [totalSize, setTotalSize] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showExperimentalDialog, setShowExperimentalDialog] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -362,6 +370,14 @@ export default function SettingsPage() {
     }
     
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleExperimentalToggle = (checked: boolean) => {
+    if (checked && !settings.experimentalTaskEntry) {
+      // First time enabling - show explanation dialog
+      setShowExperimentalDialog(true);
+    }
+    setSettings((s) => ({ ...s, experimentalTaskEntry: checked }));
   };
 
   /**
@@ -487,6 +503,37 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
+      
+      {/* Experimental Task Entry Dialog */}
+      <Dialog open={showExperimentalDialog} onOpenChange={setShowExperimentalDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>🧪 Experimental Task Entry</DialogTitle>
+            <DialogDescription className="space-y-3 pt-2">
+              <p>
+                When enabled, the <strong>first word</strong> of any task becomes a tag automatically when you type a space.
+              </p>
+              <div className="bg-muted p-3 rounded-md space-y-2">
+                <p className="text-sm font-medium">Example:</p>
+                <p className="text-sm">
+                  Type: <code className="bg-background px-1 py-0.5 rounded">strawb creators</code>
+                </p>
+                <p className="text-sm">
+                  Result: Tag <code className="bg-background px-1 py-0.5 rounded">#strawb</code>, Title <code className="bg-background px-1 py-0.5 rounded">creators</code>
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                This feature is experimental and can be disabled at any time from the settings page.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setShowExperimentalDialog(false)}>
+              Got it!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* AUTO-UPDATE SECTION - Desktop App Only */}
       {isTauriApp && (
@@ -642,6 +689,42 @@ export default function SettingsPage() {
             </div>
             <p className="text-xs text-muted-foreground">
               Display a mini pomodoro timer on the dashboard.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Experimental Features</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 max-w-xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="experimentalTaskEntry"
+                  checked={settings.experimentalTaskEntry === true}
+                  onChange={(e) => handleExperimentalToggle(e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <Label htmlFor="experimentalTaskEntry" className="cursor-pointer">
+                  Experimental Task Entry
+                </Label>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setShowExperimentalDialog(true)}
+                aria-label="View explanation"
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              First word of task becomes a tag automatically when you type a space.
             </p>
           </div>
         </CardContent>

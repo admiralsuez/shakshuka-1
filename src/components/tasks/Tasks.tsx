@@ -248,6 +248,9 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const [timezone, setTimezone] = useState<string>("UTC");
   const [strikes, setStrikes] = useState<StrikeEntry[]>([]);
 
+  // Add experimental task entry state
+  const [experimentalTaskEntry, setExperimentalTaskEntry] = useState(false);
+
   // Add updates state
   const [updates, setUpdates] = useState<TaskUpdate[]>([]);
   const [showUpdateHistory, setShowUpdateHistory] = useState(false);
@@ -325,6 +328,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       setResetHour(settings.resetHour);
       setTimezone(settings.timezone);
       setButtonColor(settings.buttonColor || "#007AFF");
+      setExperimentalTaskEntry(settings.experimentalTaskEntry === true);
       setStrikes(existingStrikes);
       setUpdates(existingUpdates);
       setUsedMessageIds(existingUsedMessages);
@@ -702,6 +706,36 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     
     // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Handle experimental task entry input
+  const handleTitleChange = (value: string) => {
+    if (!experimentalTaskEntry) {
+      setTitle(value);
+      return;
+    }
+
+    // Check if user just typed a space after the first word
+    const hasSpace = value.includes(" ");
+    const currentTagsArray = tagsInput.split(",").map(t => t.trim()).filter(Boolean);
+    
+    if (hasSpace && !title.includes(" ")) {
+      // Just added first space - extract first word as tag
+      const parts = value.trim().split(/\s+/);
+      const firstWord = parts[0];
+      const rest = parts.slice(1).join(" ");
+      
+      // Add first word as tag if not already present
+      if (firstWord && !currentTagsArray.includes(firstWord)) {
+        const newTags = [...currentTagsArray, firstWord].join(", ");
+        setTagsInput(newTags);
+      }
+      
+      // Set title to remaining text
+      setTitle(rest);
+    } else {
+      setTitle(value);
+    }
   };
 
   // Add task with validation
@@ -1139,11 +1173,16 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       <Input
                         id="task-title"
                         ref={inputRef}
-                        placeholder="Task title"
+                        placeholder={experimentalTaskEntry ? "tag rest of task..." : "Task title"}
                         value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        onChange={(e) => handleTitleChange(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
                       />
+                      {experimentalTaskEntry && (
+                        <p className="text-xs text-muted-foreground">
+                          💡 First word becomes a tag when you type a space
+                        </p>
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="task-due">Due date</Label>

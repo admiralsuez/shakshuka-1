@@ -77,6 +77,7 @@ export type AppSettings = {
   firstTimeSetupCompleted?: boolean; // track if setup dialog has been shown
   usedMessageIds?: string[]; // track which completion messages have been shown
   showPomodoroTimer?: boolean; // show pomodoro timer on dashboard
+  experimentalTaskEntry?: boolean; // experimental: first word becomes tag
 };
 
 export async function loadSettings(): Promise<AppSettings> {
