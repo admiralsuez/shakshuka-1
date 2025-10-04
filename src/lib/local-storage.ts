@@ -16,9 +16,9 @@ async function readJSON<T>(file: string, fallback: T): Promise<T> {
   const tauri = await isTauri();
   if (tauri) {
     try {
-      const fileExists = await exists(file, { baseDir: BaseDirectory.App });
+      const fileExists = await exists(file, { baseDir: BaseDirectory.AppConfig });
       if (!fileExists) return fallback;
-      const text = await readTextFile(file, { baseDir: BaseDirectory.App });
+      const text = await readTextFile(file, { baseDir: BaseDirectory.AppConfig });
       return JSON.parse(text) as T;
     } catch {
       return fallback;
@@ -37,8 +37,8 @@ async function writeJSON<T>(file: string, data: T): Promise<void> {
   const tauri = await isTauri();
   if (tauri) {
     try {
-      await mkdir(".", { baseDir: BaseDirectory.App, recursive: true });
-      await writeTextFile(file, JSON.stringify(data, null, 2), { baseDir: BaseDirectory.App });
+      await mkdir(".", { baseDir: BaseDirectory.AppConfig, recursive: true });
+      await writeTextFile(file, JSON.stringify(data, null, 2), { baseDir: BaseDirectory.AppConfig });
     } catch {}
   } else {
     try {
@@ -76,6 +76,7 @@ export type AppSettings = {
   quirkyNicknameIndex?: number; // track which nickname was last used
   firstTimeSetupCompleted?: boolean; // track if setup dialog has been shown
   usedMessageIds?: string[]; // track which completion messages have been shown
+  showPomodoroTimer?: boolean; // show pomodoro timer on dashboard
 };
 
 export async function loadSettings(): Promise<AppSettings> {

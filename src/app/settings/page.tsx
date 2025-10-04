@@ -138,6 +138,7 @@ export default function SettingsPage() {
   const [isTauriApp, setIsTauriApp] = useState(false);
   const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [totalSize, setTotalSize] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -248,10 +249,11 @@ export default function SettingsPage() {
           await update.downloadAndInstall((event) => {
             switch (event.event) {
               case "Started":
-                toast.info(`Downloading ${event.data.contentLength} bytes`);
+                setTotalSize(event.data.contentLength || null);
+                toast.info(`Downloading ${event.data.contentLength || 0} bytes`);
                 break;
               case "Progress":
-                const percent = Math.round((event.data.chunkLength / event.data.contentLength!) * 100);
+                const percent = totalSize ? Math.round((event.data.chunkLength / totalSize) * 100) : 0;
                 console.log(`Downloaded ${percent}%`);
                 break;
               case "Finished":
