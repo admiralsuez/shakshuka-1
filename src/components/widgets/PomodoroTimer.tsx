@@ -3,15 +3,20 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Play, Pause, RotateCcw } from "lucide-react";
 
-const WORK_TIME = 25 * 60; // 25 minutes in seconds
-const BREAK_TIME = 5 * 60; // 5 minutes in seconds
+const DEFAULT_WORK_TIME = 25; // minutes
+const DEFAULT_BREAK_TIME = 5; // minutes
 
 export function PomodoroTimer() {
-  const [seconds, setSeconds] = useState(WORK_TIME);
+  const [workMinutes, setWorkMinutes] = useState(DEFAULT_WORK_TIME);
+  const [breakMinutes, setBreakMinutes] = useState(DEFAULT_BREAK_TIME);
+  const [seconds, setSeconds] = useState(DEFAULT_WORK_TIME * 60);
   const [isActive, setIsActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export function PomodoroTimer() {
 
   const reset = () => {
     setIsActive(false);
-    setSeconds(isBreak ? BREAK_TIME : WORK_TIME);
+    setSeconds(isBreak ? breakMinutes * 60 : workMinutes * 60);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
@@ -52,9 +57,39 @@ export function PomodoroTimer() {
   const switchMode = () => {
     setIsActive(false);
     setIsBreak(!isBreak);
-    setSeconds(!isBreak ? BREAK_TIME : WORK_TIME);
+    setSeconds(!isBreak ? breakMinutes * 60 : workMinutes * 60);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (isActive) return; // Don't allow editing while timer is running
+    const currentMinutes = Math.floor(seconds / 60);
+    setEditValue(String(currentMinutes));
+    setIsEditing(true);
+  };
+
+  const handleEditSubmit = () => {
+    const newMinutes = parseInt(editValue);
+    if (!isNaN(newMinutes) && newMinutes > 0 && newMinutes <= 999) {
+      if (isBreak) {
+        setBreakMinutes(newMinutes);
+      } else {
+        setWorkMinutes(newMinutes);
+      }
+      setSeconds(newMinutes * 60);
+    }
+    setIsEditing(false);
+    setEditValue("");
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleEditSubmit();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditValue("");
     }
   };
 
@@ -87,12 +122,30 @@ export function PomodoroTimer() {
         <span className="hidden sm:inline">{!isBreak ? "Work" : "Break"}</span>
       </Button>
 
-      {/* Time Display */}
-      <div className="flex items-center justify-center bg-secondary/80 rounded-lg px-3 h-8">
-        <span className="text-sm font-mono font-semibold tabular-nums">
-          {String(minutes).padStart(2, "0")}:{String(remainingSeconds).padStart(2, "0")}
-        </span>
-      </div>
+      {/* Time Display - Editable on double-click */}
+      {isEditing ? (
+        <Input
+          type="number"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onKeyDown={handleEditKeyDown}
+          onBlur={handleEditSubmit}
+          className="h-8 w-16 text-sm font-mono text-center p-1"
+          autoFocus
+          min={1}
+          max={999}
+        />
+      ) : (
+        <div 
+          className="flex items-center justify-center bg-secondary/80 rounded-lg px-3 h-8 cursor-pointer hover:bg-secondary transition-colors"
+          onDoubleClick={handleDoubleClick}
+          title="Double-click to edit time"
+        >
+          <span className="text-sm font-mono font-semibold tabular-nums">
+            {String(minutes).padStart(2, "0")}:{String(remainingSeconds).padStart(2, "0")}
+          </span>
+        </div>
+      )}
 
       {/* Control Buttons */}
       <div className="flex items-center gap-1">

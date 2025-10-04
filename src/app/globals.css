@@ -102,16 +102,31 @@
     @apply bg-background text-foreground;
   }
   
-  /* Strike animation for tasks */
+  /* Strike animation for tasks - enhanced for visibility */
   @keyframes strike-through {
     0% {
-      background-size: 0% 2px;
-      background-position: 0% 50%;
+      width: 0%;
+      opacity: 0;
     }
     100% {
-      background-size: 100% 2px;
-      background-position: 100% 50%;
+      width: 100%;
+      opacity: 1;
     }
+  }
+  
+  .animate-strike p {
+    position: relative;
+  }
+  
+  .animate-strike p::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 2px;
+    width: 0%;
+    background: currentColor;
+    animation: strike-through 1.2s ease-in-out forwards;
   }
   
   /* Slow pulse animation for strike button hover */
@@ -124,16 +139,6 @@
       transform: scale(1.05);
       box-shadow: 0 0 8px 2px rgba(0, 122, 255, 0.3);
     }
-  }
-  
-  .animate-strike {
-    animation: strike-through 1.2s ease-in-out forwards;
-  }
-  
-  .animate-strike p {
-    background: linear-gradient(to right, currentColor 0%, currentColor 100%) no-repeat;
-    background-size: 0% 2px;
-    background-position: 0% 50%;
   }
   
   button[data-strike-button]:not(:disabled):hover {
