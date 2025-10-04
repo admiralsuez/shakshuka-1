@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getRandomCompletionMessage } from "@/lib/completion-messages";
 import confetti from "canvas-confetti";
+import { motion } from "framer-motion";
 
 export type Task = {
   id: string; // UUID
@@ -303,6 +304,9 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const [query, setQuery] = useState("");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   
+  // Add active tab state for animation
+  const [activeTab, setActiveTab] = useState<"active" | "expired" | "completed">("active");
+
   // Load once - check for first-time setup
   useEffect(() => {
     let mounted = true;
@@ -1436,123 +1440,175 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
           </Dialog>
 
           {/* Tabs for Active / Expired / Completed */}
-          <Tabs defaultValue="active" className="w-full">
-            <TabsList>
-              <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
-              <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
-              <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
-            </TabsList>
+          <div className="w-full">
+            {/* Custom Animated TabsList */}
+            <div className="relative inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full">
+              {/* Animated indicator */}
+              <motion.div
+                className="absolute h-[calc(100%-8px)] rounded-sm bg-background shadow-sm"
+                initial={false}
+                animate={{
+                  x: activeTab === "active" ? 4 : activeTab === "expired" ? "calc(33.33% + 2px)" : "calc(66.66%)",
+                  width: "calc(33.33% - 8px)"
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              />
+              
+              {/* Tab Triggers */}
+              <button
+                onClick={() => setActiveTab("active")}
+                className={`relative inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 z-10 ${
+                  activeTab === "active" ? "text-foreground" : ""
+                }`}
+              >
+                Active ({activeTasks.length})
+              </button>
+              
+              <button
+                onClick={() => setActiveTab("expired")}
+                className={`relative inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 z-10 ${
+                  activeTab === "expired" ? "text-foreground" : ""
+                }`}
+              >
+                Expired ({expiredTasks.length})
+              </button>
+              
+              <button
+                onClick={() => setActiveTab("completed")}
+                className={`relative inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1 z-10 ${
+                  activeTab === "completed" ? "text-foreground" : ""
+                }`}
+              >
+                Completed ({completedTasks.length})
+              </button>
+            </div>
 
-            <TabsContent value="active" className="mt-2">
-              {compact ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {activeFiltered.length === 0 && (
-                    <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
-                  )}
-                  {activeFiltered.map((t) => {
-                    const struck = struckTodayIds.has(t.id);
-                    return renderTaskItem(t, struck, true);
-                  })}
-                </div>
-              ) : (
-                <ul className="divide-y divide-border rounded-md border">
-                  {activeFiltered.length === 0 && (
-                    <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
-                  )}
-                  {activeFiltered.map((t) => {
-                    const struck = struckTodayIds.has(t.id);
-                    return renderTaskItem(t, struck, false);
-                  })}
-                </ul>
-              )}
-            </TabsContent>
-
-            <TabsContent value="expired" className="mt-2">
-              {compact ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {expiredFiltered.length === 0 && (
-                    <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
-                  )}
-                  {expiredFiltered.map((t) => {
-                    const struck = struckTodayIds.has(t.id);
-                    return renderTaskItem(t, struck, true);
-                  })}
-                </div>
-              ) : (
-                <ul className="divide-y divide-border rounded-md border">
-                  {expiredFiltered.length === 0 && (
-                    <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
-                  )}
-                  {expiredFiltered.map((t) => {
-                    const struck = struckTodayIds.has(t.id);
-                    return renderTaskItem(t, struck, false);
-                  })}
-                </ul>
-              )}
-            </TabsContent>
-
-            <TabsContent value="completed" className="mt-2">
-              {compact ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {completedFiltered.length === 0 && (
-                    <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
-                  )}
-                  {completedFiltered.map((t) => (
-                    <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground text-center">{t.title}</p>
-                        {t.projects && t.projects.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {t.projects.slice(0, 2).map(project => (
-                              <span key={project} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
-                            ))}
-                            {t.projects.length > 2 && <span className="text-xs text-muted-foreground">+{t.projects.length - 2}</span>}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-end pt-1" onClick={(e) => e.stopPropagation()}>
-                          <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+            {/* Animated Tab Content */}
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="mt-2"
+            >
+              {activeTab === "active" && (
+                <>
+                  {compact ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {activeFiltered.length === 0 && (
+                        <p className="text-muted-foreground p-3 text-sm col-span-full">No active tasks.</p>
+                      )}
+                      {activeFiltered.map((t) => {
+                        const struck = struckTodayIds.has(t.id);
+                        return renderTaskItem(t, struck, true);
+                      })}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <ul className="divide-y divide-border rounded-md border">
-                  {completedFiltered.length === 0 && (
-                    <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-md border">
+                      {activeFiltered.length === 0 && (
+                        <li className="p-4 text-sm text-muted-foreground">No active tasks.</li>
+                      )}
+                      {activeFiltered.map((t) => {
+                        const struck = struckTodayIds.has(t.id);
+                        return renderTaskItem(t, struck, false);
+                      })}
+                    </ul>
                   )}
-                  {completedFiltered.map((t) => (
-                    <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="line-through text-muted-foreground text-sm sm:text-base text-center">{t.title}</p>
-                            {t.notes && (
-                              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
-                            )}
+                </>
+              )}
+
+              {activeTab === "expired" && (
+                <>
+                  {compact ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {expiredFiltered.length === 0 && (
+                        <p className="text-muted-foreground p-3 text-sm col-span-full">No expired tasks.</p>
+                      )}
+                      {expiredFiltered.map((t) => {
+                        const struck = struckTodayIds.has(t.id);
+                        return renderTaskItem(t, struck, true);
+                      })}
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-md border">
+                      {expiredFiltered.length === 0 && (
+                        <li className="p-4 text-sm text-muted-foreground">No expired tasks.</li>
+                      )}
+                      {expiredFiltered.map((t) => {
+                        const struck = struckTodayIds.has(t.id);
+                        return renderTaskItem(t, struck, false);
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
+
+              {activeTab === "completed" && (
+                <>
+                  {compact ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {completedFiltered.length === 0 && (
+                        <p className="text-muted-foreground p-3 text-sm col-span-full">No completed tasks.</p>
+                      )}
+                      {completedFiltered.map((t) => (
+                        <div key={t.id} className="p-2.5 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => openTaskDetail(t)}>
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium line-clamp-2 line-through text-muted-foreground text-center">{t.title}</p>
                             {t.projects && t.projects.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1 justify-center">
-                                {t.projects.map(project => (
-                                  <span key={project} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
+                              <div className="flex flex-wrap gap-1">
+                                {t.projects.slice(0, 2).map(project => (
+                                  <span key={project} className="px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
                                 ))}
+                                {t.projects.length > 2 && <span className="text-xs text-muted-foreground">+{t.projects.length - 2}</span>}
                               </div>
                             )}
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end pt-1" onClick={(e) => e.stopPropagation()}>
+                              <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      ))}
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border rounded-md border">
+                      {completedFiltered.length === 0 && (
+                        <li className="p-4 text-sm text-muted-foreground">No completed tasks.</li>
+                      )}
+                      {completedFiltered.map((t) => (
+                        <li key={t.id} className="flex items-start gap-3 p-4 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => openTaskDetail(t)}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="line-through text-muted-foreground text-sm sm:text-base text-center">{t.title}</p>
+                                {t.notes && (
+                                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{t.notes}</p>
+                                )}
+                                {t.projects && t.projects.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                                    {t.projects.map(project => (
+                                      <span key={project} className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[11px]">#{project}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <Button size="icon" variant="ghost" onClick={() => removeTask(t.id)} aria-label="Delete task">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
-            </TabsContent>
-          </Tabs>
+            </motion.div>
+          </div>
 
           {/* Task Detail/Edit Dialog */}
           <Dialog open={!!detailTaskId} onOpenChange={(open) => { if (!open) closeTaskDetail(); }}>
