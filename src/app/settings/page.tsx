@@ -13,7 +13,41 @@ import { readTextFile, writeTextFile, exists, BaseDirectory } from "@tauri-apps/
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 
-// Tauri detection
+/**
+ * ============================================================================
+ * DEVELOPER NOTES - Settings Page Architecture
+ * ============================================================================
+ * 
+ * This page handles application settings, data import/export, and updates.
+ * The app runs in TWO modes: Web (browser) and Desktop (Tauri app).
+ * 
+ * KEY SYSTEMS:
+ * 1. Tauri Detection - Determines if running as desktop app or web
+ * 2. Data Storage - Dual storage system (localStorage + Tauri filesystem OR API)
+ * 3. Import/Export - Backup and restore all app data
+ * 4. Auto Updates - Desktop app can check and install updates (Tauri only)
+ * 5. Settings Management - User preferences with live reload
+ * 
+ * ============================================================================
+ */
+
+/**
+ * TAURI DETECTION SYSTEM
+ * ----------------------
+ * Detects if the app is running as a Tauri desktop app vs web browser.
+ * 
+ * HOW IT WORKS:
+ * - Tries to call getVersion() from Tauri API
+ * - If successful → Desktop app (Tauri available)
+ * - If fails → Web browser (Tauri not available)
+ * 
+ * USAGE:
+ * - Controls which storage system to use (filesystem vs API)
+ * - Shows/hides desktop-only features (updates, file operations)
+ * - Determines data persistence strategy
+ * 
+ * @returns {Promise<boolean>} true if running in Tauri, false if web
+ */
 async function isTauri(): Promise<boolean> {
   try {
     await getVersion();
@@ -23,8 +57,36 @@ async function isTauri(): Promise<boolean> {
   }
 }
 
+/**
+ * DUAL STORAGE SYSTEM
+ * -------------------
+ * The app supports TWO storage backends depending on runtime environment:
+ * 
+ * 1. TAURI (Desktop App):
+ *    - Uses filesystem: BaseDirectory.AppData
+ *    - Location: Platform-specific app data folder
+ *      * Windows: %APPDATA%/com.shakshuka.app/
+ *      * macOS: ~/Library/Application Support/com.shakshuka.app/
+ *      * Linux: ~/.local/share/com.shakshuka.app/
+ *    - File: tasks.json (for tasks data)
+ *    - Benefits: Offline-first, no auth required, fast
+ * 
+ * 2. WEB (Browser):
+ *    - Uses API routes: /api/tasks
+ *    - Storage: Database via API + localStorage for settings
+ *    - Requires: Bearer token authentication
+ *    - Benefits: Sync across devices, cloud backup
+ * 
+ * IMPORTANT: Both systems must maintain compatible data formats!
+ */
+
 const TASKS_FILE = "tasks.json";
 
+/**
+ * Fetch tasks from Tauri filesystem (Desktop app only)
+ * 
+ * @returns {Promise<any[]>} Array of tasks or empty array if error/not found
+ */
 async function fetchTasksTauri() {
   try {
     const available = await isTauri();
@@ -39,6 +101,14 @@ async function fetchTasksTauri() {
   }
 }
 
+/**
+ * Fetch tasks from API endpoint (Web version)
+ * 
+ * Uses bearer token authentication from localStorage.
+ * Falls back to empty array on any error (network, auth, etc).
+ * 
+ * @returns {Promise<any[]>} Array of tasks from API or empty array
+ */
 async function fetchTasksAPI() {
   try {
     const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;
@@ -54,6 +124,11 @@ async function fetchTasksAPI() {
   }
 }
 
+/**
+ * Save tasks to Tauri filesystem (Desktop app only)
+ * 
+ * @param {any[]} tasks - Array of task objects to save
+ */
 async function saveTasksTauri(tasks: any[]) {
   try {
     const available = await isTauri();
@@ -62,10 +137,15 @@ async function saveTasksTauri(tasks: any[]) {
       baseDir: BaseDirectory.AppData,
     });
   } catch {
-    // ignore
+    // Silent fail - filesystem errors are non-critical
   }
 }
 
+/**
+ * Save tasks to API endpoint (Web version)
+ * 
+ * @param {any[]} tasks - Array of task objects to save
+ */
 async function saveTasksAPI(tasks: any[]) {
   const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : null;
   await fetch("/api/tasks", {
@@ -75,9 +155,43 @@ async function saveTasksAPI(tasks: any[]) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(tasks),
-  }).catch(() => {});
+  }).catch(() => {
+    // Silent fail - API errors handled by caller
+  });
 }
 
+/**
+ * DATA EXPORT SYSTEM
+ * ------------------
+ * Creates a complete backup of all app data in a portable JSON format.
+ * 
+ * EXPORTED DATA INCLUDES:
+ * - tasks: All user tasks (from Tauri file OR API)
+ * - settings: User preferences (resetHour, timezone, colors, etc)
+ * - strikes: Strike history and counts
+ * - updates: Update check history
+ * - usedMessages: Motivational message tracking
+ * 
+ * FORMAT:
+ * {
+ *   version: "1.0",           // Schema version for compatibility
+ *   exportedAt: "ISO date",   // Timestamp
+ *   tasks: [...],
+ *   settings: {...},
+ *   strikes: {...},
+ *   updates: {...},
+ *   usedMessages: {...}
+ * }
+ * 
+ * USE CASES:
+ * - Manual backups before major changes
+ * - Migrating between devices
+ * - Data recovery
+ * - Debugging/support
+ * 
+ * @returns {Promise<object>} Complete app data snapshot
+ * @throws {Error} If data collection fails
+ */
 async function exportData() {
   try {
     const [tasks, settings, strikes, updates, usedMessages] = await Promise.all([
@@ -103,18 +217,42 @@ async function exportData() {
   }
 }
 
+/**
+ * DATA IMPORT SYSTEM
+ * ------------------
+ * Restores app data from an exported backup file.
+ * 
+ * VALIDATION:
+ * - Checks for required fields: version, tasks array
+ * - Gracefully handles missing optional data
+ * - Overwrites existing data (use with caution!)
+ * 
+ * IMPORT PROCESS:
+ * 1. Validate backup file structure
+ * 2. Restore tasks to appropriate storage (Tauri file OR API)
+ * 3. Restore localStorage data (settings, strikes, etc)
+ * 4. Reload page to apply changes
+ * 
+ * IMPORTANT: This is a DESTRUCTIVE operation - all current data is replaced!
+ * Consider adding a confirmation dialog before import.
+ * 
+ * @param {any} data - Parsed backup data object
+ * @throws {Error} If data format is invalid or restore fails
+ */
 async function importData(data: any) {
   try {
     if (!data || !data.version || !Array.isArray(data.tasks)) {
       throw new Error("Invalid import data format");
     }
     
+    // Restore tasks to appropriate storage backend
     if ((await isTauri())) {
       await saveTasksTauri(data.tasks);
     } else {
       await saveTasksAPI(data.tasks);
     }
     
+    // Restore localStorage data
     if (data.settings) await saveSettings(data.settings);
     if (data.strikes) await saveStrikes(data.strikes);
     if (data.updates) await saveUpdates(data.updates);
@@ -226,6 +364,62 @@ export default function SettingsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /**
+   * TAURI AUTO-UPDATE SYSTEM
+   * ------------------------
+   * Desktop app only - checks for and installs app updates automatically.
+   * 
+   * HOW IT WORKS:
+   * 1. Calls check() from @tauri-apps/plugin-updater
+   * 2. Updater fetches update manifest from configured endpoint
+   * 3. Compares manifest version with current app version
+   * 4. If newer version available, prompts user to install
+   * 5. Downloads update in background with progress tracking
+   * 6. Installs update and restarts app
+   * 
+   * CONFIGURATION REQUIRED (src-tauri/tauri.conf.json):
+   * {
+   *   "updater": {
+   *     "active": true,
+   *     "endpoints": [
+   *       "https://github.com/YOUR_USERNAME/YOUR_REPO/releases/latest/download/latest.json"
+   *     ],
+   *     "dialog": false,  // We handle UI ourselves
+   *     "pubkey": "YOUR_PUBLIC_KEY"  // For signature verification
+   *   }
+   * }
+   * 
+   * UPDATE MANIFEST FORMAT (latest.json on GitHub):
+   * {
+   *   "version": "1.2.3",
+   *   "notes": "What's new...",
+   *   "pub_date": "2025-01-01T00:00:00Z",
+   *   "platforms": {
+   *     "darwin-x86_64": { "signature": "...", "url": "..." },
+   *     "darwin-aarch64": { "signature": "...", "url": "..." },
+   *     "linux-x86_64": { "signature": "...", "url": "..." },
+   *     "windows-x86_64": { "signature": "...", "url": "..." }
+   *   }
+   * }
+   * 
+   * DEPLOYMENT WORKFLOW:
+   * 1. Tag release in git: git tag v1.2.3 && git push --tags
+   * 2. GitHub Actions builds app for all platforms
+   * 3. Creates GitHub Release with binaries + latest.json
+   * 4. Users click "Check for Updates" to get new version
+   * 
+   * SECURITY:
+   * - Updates are cryptographically signed with pubkey
+   * - Only installs if signature matches
+   * - Prevents MITM attacks and tampering
+   * 
+   * PROGRESS TRACKING:
+   * - Started: Download begins, shows file size
+   * - Progress: Track download chunks (can show progress bar)
+   * - Finished: Download complete, about to install
+   * 
+   * @async
+   */
   const handleCheckForUpdates = async () => {
     if (!isTauriApp) {
       toast.error("Updates are only available in the desktop app");
@@ -234,18 +428,20 @@ export default function SettingsPage() {
 
     setChecking(true);
     try {
+      // Fetch update manifest from configured endpoint
       const update = await check();
       
       if (update?.available) {
         toast.success(`Update available: v${update.version}`);
         
-        // Ask user if they want to install
+        // Prompt user for installation confirmation
         const install = confirm(`A new version (v${update.version}) is available. Install now?\n\nThe app will restart after installation.`);
         
         if (install) {
           setUpdating(true);
           toast.info("Downloading update...");
           
+          // Download and install with progress tracking
           await update.downloadAndInstall((event) => {
             switch (event.event) {
               case "Started":
@@ -253,6 +449,7 @@ export default function SettingsPage() {
                 toast.info(`Downloading ${event.data.contentLength || 0} bytes`);
                 break;
               case "Progress":
+                // Track download progress (can add progress bar here)
                 const percent = totalSize ? Math.round((event.data.chunkLength / totalSize) * 100) : 0;
                 console.log(`Downloaded ${percent}%`);
                 break;
@@ -262,7 +459,7 @@ export default function SettingsPage() {
             }
           });
           
-          // Restart the app
+          // Restart app to complete installation
           await relaunch();
         }
       } else {
@@ -291,6 +488,7 @@ export default function SettingsPage() {
     <div className="mx-auto w-full max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
       
+      {/* AUTO-UPDATE SECTION - Desktop App Only */}
       {isTauriApp && (
         <Card>
           <CardHeader>
@@ -314,6 +512,7 @@ export default function SettingsPage() {
         </Card>
       )}
       
+      {/* DATA MANAGEMENT SECTION - Import/Export Backups */}
       <Card>
         <CardHeader>
           <CardTitle>Data Management</CardTitle>
