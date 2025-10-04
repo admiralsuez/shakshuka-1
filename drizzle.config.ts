@@ -1,7 +1,6 @@
-import { defineConfig } from 'drizzle-kit';
 import type { Config } from 'drizzle-kit';
 
-const dbConfig: Config = defineConfig({
+export default {
   schema: './src/db/schema.ts',
   out: './drizzle',
   dialect: 'turso',
@@ -9,6 +8,4 @@ const dbConfig: Config = defineConfig({
     url: process.env.TURSO_CONNECTION_URL!,
     authToken: process.env.TURSO_AUTH_TOKEN!,
   },
-});
-
-export default dbConfig;
+} satisfies Config;
