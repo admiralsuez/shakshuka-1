@@ -1438,9 +1438,24 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
           {/* Tabs for Active / Expired / Completed */}
           <Tabs defaultValue="active" className="w-full">
             <TabsList>
-              <TabsTrigger value="active">Active ({activeTasks.length})</TabsTrigger>
-              <TabsTrigger value="expired">Expired ({expiredTasks.length})</TabsTrigger>
-              <TabsTrigger value="completed">Completed ({completedTasks.length})</TabsTrigger>
+              <TabsTrigger 
+                value="active" 
+                className="data-[state=active]:bg-blue-500 data-[state=active]:text-white dark:data-[state=active]:bg-blue-600"
+              >
+                Active ({activeTasks.length})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="expired" 
+                className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:data-[state=active]:bg-orange-600"
+              >
+                Expired ({expiredTasks.length})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="completed" 
+                className="data-[state=active]:bg-green-500 data-[state=active]:text-white dark:data-[state=active]:bg-green-600"
+              >
+                Completed ({completedTasks.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="active" className="mt-2">
