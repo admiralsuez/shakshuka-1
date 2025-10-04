@@ -6,6 +6,13 @@ export const users = sqliteTable('users', {
   email: text('email').unique(),
 });
 
+export const categories = sqliteTable('categories', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  color: text('color').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
 export const settings = sqliteTable('settings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id'),
