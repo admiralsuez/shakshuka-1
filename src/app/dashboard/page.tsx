@@ -133,10 +133,10 @@ async function loadDashboardWidgets(): Promise<DashboardWidget[]> {
   try {
     // Desktop app path: Read from app data directory
     if (await isTauri()) {
-      const ok = await exists("dashboard-widgets.json", { baseDir: BaseDirectory.App });
+      const ok = await exists("dashboard-widgets.json", { baseDir: BaseDirectory.AppData });
       if (!ok) return [];
       
-      const txt = await readTextFile("dashboard-widgets.json", { baseDir: BaseDirectory.App });
+      const txt = await readTextFile("dashboard-widgets.json", { baseDir: BaseDirectory.AppData });
       return JSON.parse(txt);
     }
     
@@ -153,7 +153,7 @@ async function loadDashboardWidgets(): Promise<DashboardWidget[]> {
  * @param widgets - Array of widgets to save
  * 
  * Storage locations:
- * - Tauri: App/dashboard-widgets.json
+ * - Tauri: AppData/dashboard-widgets.json
  * - Web: localStorage key "dashboard-widgets"
  */
 async function saveDashboardWidgets(widgets: DashboardWidget[]): Promise<void> {
@@ -163,7 +163,7 @@ async function saveDashboardWidgets(widgets: DashboardWidget[]): Promise<void> {
       await writeTextFile(
         "dashboard-widgets.json", 
         JSON.stringify(widgets, null, 2), 
-        { baseDir: BaseDirectory.App }
+        { baseDir: BaseDirectory.AppData }
       );
     } else {
       // Web app path: Write to localStorage
