@@ -20,14 +20,9 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcuts, enabled: bool
       // Check for shortcuts
       const key = e.key.toLowerCase();
       
-      // Only override browser defaults on localhost
-      const isLocalhost = typeof window !== "undefined" && 
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-      
       if (shortcuts[key]) {
-        if (isLocalhost) {
-          e.preventDefault();
-        }
+        // CRITICAL FIX: Always prevent default to stop 'n' from being typed in the input
+        e.preventDefault();
         shortcuts[key]();
       }
     };

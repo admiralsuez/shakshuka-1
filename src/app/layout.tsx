@@ -41,15 +41,20 @@ export default function RootLayout({
             data-debug="true"
             data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
           />
-          {/* Simple top navigation */}
-          <header className="w-full border-b">
-            <nav className="mx-auto max-w-5xl px-4 sm:px-6 py-3 flex items-center gap-4 text-sm">
-              <Link href="/dashboard" className="font-semibold">Shakshuka</Link>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Link href="/dashboard" className="hover:text-foreground">Dashboard</Link>
-                <Link href="/planner" className="hover:text-foreground">Planner</Link>
-                <Link href="/reports" className="hover:text-foreground">Reports</Link>
-                <Link href="/settings" className="hover:text-foreground">Settings</Link>
+          {/* Responsive top navigation */}
+          <header className="w-full border-b bg-background sticky top-0 z-50">
+            <nav className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-3 flex items-center justify-between gap-3 sm:gap-4 text-sm">
+              <Link 
+                href="/dashboard" 
+                className="font-bold text-base sm:text-lg shrink-0 hover:opacity-80 transition-opacity"
+              >
+                🍳 Shakshuka
+              </Link>
+              <div className="flex items-center gap-2 sm:gap-3 text-muted-foreground overflow-x-auto">
+                <Link href="/dashboard" className="hover:text-foreground whitespace-nowrap transition-colors">Dashboard</Link>
+                <Link href="/planner" className="hover:text-foreground whitespace-nowrap transition-colors">Planner</Link>
+                <Link href="/reports" className="hover:text-foreground whitespace-nowrap transition-colors">Reports</Link>
+                <Link href="/settings" className="hover:text-foreground whitespace-nowrap transition-colors">Settings</Link>
               </div>
             </nav>
           </header>
