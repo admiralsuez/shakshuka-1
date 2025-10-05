@@ -28,6 +28,9 @@
     "windows": {
       "wix": null,
       "nsis": null
-    }
+    },
+    "icon": [
+      "icons/icon.png"
+    ]
   }
 }

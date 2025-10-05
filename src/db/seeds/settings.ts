@@ -10,8 +10,16 @@ async function main() {
         }
     ];
 
-    await db.insert(settings).values(defaultSettings);
-    
+    // Add required fields: createdAt and updatedAt
+    const now = Date.now();
+    const settingsWithTimestamps = defaultSettings.map(setting => ({
+        ...setting,
+        createdAt: now,
+        updatedAt: now,
+    }));
+
+    await db.insert(settings).values(settingsWithTimestamps);
+
     console.log('✅ Settings seeder completed successfully');
 }
 

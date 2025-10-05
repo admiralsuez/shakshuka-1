@@ -1,0 +1,8 @@
+C:\Users\Divansh Singh\Desktop\shakshuka-1\src-tauri\target\release\deps\serde_with_macros-3d861178d64fffed.d: C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\lib.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\apply.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\lazy_bool.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\utils.rs
+
+C:\Users\Divansh Singh\Desktop\shakshuka-1\src-tauri\target\release\deps\serde_with_macros-3d861178d64fffed.dll: C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\lib.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\apply.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\lazy_bool.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\utils.rs
+
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\lib.rs:
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\apply.rs:
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\lazy_bool.rs:
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_with_macros-3.14.1\src\utils.rs:

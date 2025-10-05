@@ -1,0 +1,10 @@
+C:\Users\Divansh Singh\Desktop\shakshuka-1\src-tauri\target\release\deps\toml_datetime-4392f2c273b96df8.d: C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\lib.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\datetime.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\de.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\ser.rs
+
+C:\Users\Divansh Singh\Desktop\shakshuka-1\src-tauri\target\release\deps\libtoml_datetime-4392f2c273b96df8.rlib: C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\lib.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\datetime.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\de.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\ser.rs
+
+C:\Users\Divansh Singh\Desktop\shakshuka-1\src-tauri\target\release\deps\libtoml_datetime-4392f2c273b96df8.rmeta: C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\lib.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\datetime.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\de.rs C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\ser.rs
+
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\lib.rs:
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\datetime.rs:
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\de.rs:
+C:\Users\Divansh\ Singh\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\toml_datetime-0.7.2\src\ser.rs:
