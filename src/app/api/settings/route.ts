@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { settings } from '@/db/schema';
 import { eq, isNull } from 'drizzle-orm';
 
+// Configure route for static export compatibility
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Check if settings exist (userId null for single-user app)
