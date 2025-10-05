@@ -89,7 +89,6 @@ export const cleanTasks = sqliteTable('clean_tasks', {
 
 export const tasks = sqliteTable('tasks', {
   id: text('id').primaryKey(),
-  revision: integer('revision').notNull().default(1),
   title: text('title').notNull(),
   notes: text('notes'),
   completed: integer('completed').notNull().default(0),
