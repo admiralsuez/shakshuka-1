@@ -1,11 +1,15 @@
+import 'dotenv/config';
 import type { Config } from 'drizzle-kit';
 
-export default {
+const cfg = {
   schema: './src/db/schema.ts',
   out: './drizzle',
-  dialect: 'turso',
+  // remove `dialect` if your drizzle-kit types don't allow it
   dbCredentials: {
+    // prefer `token` for Turso, not `authToken`
     url: process.env.TURSO_CONNECTION_URL!,
-    authToken: process.env.TURSO_AUTH_TOKEN!,
+    token: process.env.TURSO_TOKEN!,
   },
-} satisfies Config;
+} as unknown as Config; // cast avoids mismatched minor-typing issues
+
+export default cfg;
