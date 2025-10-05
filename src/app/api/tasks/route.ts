@@ -5,7 +5,6 @@ import { like } from 'drizzle-orm';
 
 export type Task = {
   id: string;
-  revision: number;
   title: string;
   notes?: string;
   completed: boolean;
@@ -38,7 +37,6 @@ export async function GET() {
 
       return {
         id: String(task.id),
-        revision: Number(task.revision) || 1, // Handle corrupted data
         title: task.title,
         notes: task.notes || undefined,
         completed: Boolean(task.completed),
@@ -107,7 +105,6 @@ export async function PUT(request: NextRequest) {
       
       return {
         id: taskId,
-        revision: Number(t.revision) || 1,
         title: String(t.title),
         notes: t.notes ? String(t.notes) : null,
         completed: t.completed ? 1 : 0,
