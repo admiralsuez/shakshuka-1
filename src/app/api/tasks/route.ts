@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { tasks } from '@/db/schema';
 import { like } from 'drizzle-orm';
 
+// Force static generation for Tauri compatibility
+export const dynamic = 'force-static';
+
 export type Task = {
   id: string;
   revision: number;

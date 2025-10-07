@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { settings } from '@/db/schema';
 import { eq, isNull } from 'drizzle-orm';
 
+// Force static generation for Tauri compatibility
+export const dynamic = 'force-static';
+
 export async function GET(request: NextRequest) {
   try {
     // Check if settings exist (userId null for single-user app)

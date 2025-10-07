@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { monthlyStats, tasks, strikes, settings } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
+// Force static generation for Tauri compatibility
+export const dynamic = 'force-static';
+
 export async function GET(request: NextRequest) {
   try {
     // Since auth is not set up, use default timezone/resetHour
