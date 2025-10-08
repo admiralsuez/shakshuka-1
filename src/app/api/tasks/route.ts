@@ -121,7 +121,7 @@ export async function PUT(request: NextRequest) {
         tags: (Array.isArray(t.tags) && t.tags.length > 0) ? JSON.stringify(t.tags) : null,
       };
     });
-
+    debugger;
     // Insert new tasks with user prefix for isolation
     if (normalizedTasks.length > 0) {
       await db.insert(tasks).values(normalizedTasks);
