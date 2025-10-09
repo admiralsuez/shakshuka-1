@@ -7,7 +7,7 @@
 // - Custom widgets added from Reports page
 // - Pomodoro timer (optional)
 // - Task list with compact/relaxed view modes
-// - Keyboard shortcuts for quick navigation (N = new task, P = planner)
+// - Keyboard shortcuts for quick navigation (N = new task)
 // ============================================================================
 
 "use client";
@@ -241,14 +241,10 @@ export default function DashboardPage() {
   /**
    * Keyboard shortcuts setup
    * N: Open new task dialog
-   * P: Navigate to planner page
    */
   useKeyboardShortcuts({
     n: () => {
       tasksRef.current?.openAddDialog();
-    },
-    p: () => {
-      router.push("/planner");
     }
   });
 
@@ -485,8 +481,7 @@ export default function DashboardPage() {
           <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
             Track your daily strikes, monitor progress, and manage tasks.
             <span className="ml-2 text-[10px] sm:text-xs opacity-70">
-              Press <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground border text-[9px] sm:text-[10px]">N</kbd> for new task, 
-              <kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-muted-foreground border text-[9px] sm:text-[10px]">P</kbd> for planner
+              Press <kbd className="px-1 py-0.5 rounded bg-muted text-muted-foreground border text-[9px] sm:text-[10px]">N</kbd> for new task
             </span>
           </p>
         </div>

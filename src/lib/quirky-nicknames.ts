@@ -28,7 +28,6 @@ const QUIRKY_NICKNAMES = [
   "Leader",
   "Strategist",
   "Tactician",
-  "Planner",
   "Organizer",
   "Doer",
   "Maker",

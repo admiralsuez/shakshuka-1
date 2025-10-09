@@ -68,7 +68,7 @@ export default function RootLayout({
                 </Link>
                 <div className="flex items-center gap-2 sm:gap-3 text-muted-foreground overflow-x-auto">
                   <Link href="/dashboard" className="hover:text-foreground whitespace-nowrap transition-colors">Dashboard</Link>
-                  <Link href="/planner" className="hover:text-foreground whitespace-nowrap transition-colors">Planner</Link>
+                  <Link href="/daily-planner" className="hover:text-foreground whitespace-nowrap transition-colors">Daily Planner</Link>
                   <Link href="/reports" className="hover:text-foreground whitespace-nowrap transition-colors">Reports</Link>
                   <Link href="/settings" className="hover:text-foreground whitespace-nowrap transition-colors">Settings</Link>
                 </div>
