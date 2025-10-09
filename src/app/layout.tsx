@@ -10,7 +10,7 @@ import { AppWrapper } from "@/components/AppWrapper";
 import { ExitConfirmation } from "@/components/ExitConfirmation";
 import { ExitConfirmationProvider } from "@/components/ExitConfirmationProvider";
 import { ExitButton } from "@/components/ExitButton";
-import { CustomTitleBar } from "@/components/CustomTitleBar";
+import { CustomTitleBar, ConditionalHeader } from "@/components/CustomTitleBar";
 import Script from "next/script";
 
 // Initialize developer logger
@@ -58,10 +58,10 @@ export default function RootLayout({
             <CustomTitleBar />
             
             {/* Responsive top navigation */}
-            <header className="w-full border-b bg-background sticky top-8 z-50">
+            <ConditionalHeader>
               <nav className="mx-auto max-w-5xl px-3 sm:px-4 md:px-6 py-3 flex items-center justify-between gap-3 sm:gap-4 text-sm">
-                <Link 
-                  href="/dashboard" 
+                <Link
+                  href="/dashboard"
                   className="font-bold text-base sm:text-lg shrink-0 hover:opacity-80 transition-opacity"
                 >
                   Shakshuka
@@ -73,7 +73,7 @@ export default function RootLayout({
                   <Link href="/settings" className="hover:text-foreground whitespace-nowrap transition-colors">Settings</Link>
                 </div>
               </nav>
-            </header>
+            </ConditionalHeader>
             <AppWrapper>
               {children}
             </AppWrapper>

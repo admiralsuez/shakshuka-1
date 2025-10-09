@@ -499,31 +499,8 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
     };
   }, []);
 
-  // Add beforeunload handler to save before page close/reload
-  useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
-      // Force immediate save before page unloads
-      if (hasLoadedRef.current && tasksRef.current) {
-        try {
-          if (useTauriRef.current) {
-            await saveTasksTauri(tasksRef.current);
-          } else {
-            await saveTasksAPI(tasksRef.current);
-          }
-          console.log("✅ Tasks saved before page unload");
-        } catch (error) {
-          console.error("❌ Failed to save tasks before page unload:", error);
-          // Show warning to user
-          e.preventDefault();
-          e.returnValue = "Tasks may not be saved. Are you sure you want to leave?";
-          return e.returnValue;
-        }
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  // Note: beforeunload handling is now managed by the ExitConfirmationProvider
+  // to avoid conflicts with multiple confirmation dialogs
 
   // Auto-refresh tasks at reset hour
   useEffect(() => {
@@ -1375,19 +1352,17 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                         onKeyDown={(e) => { 
                           if (e.key === "Enter") {
                             addTask();
-                          } else if (e.key === " " && settings?.experimentalFeatures?.smartTagging && !smartTaggingUsed && title.trim().length > 0) {
-                            console.log("🏷️ Smart tagging triggered!");
+                          } else if (e.key === "," && settings?.experimentalFeatures?.smartTagging && !smartTaggingUsed && title.trim().length > 0) {
+                            console.log("🏷️ Smart tagging triggered with comma!");
                             console.log("🏷️ Current title:", title);
-                            console.log("🏷️ Settings:", settings?.experimentalFeatures);
-                            console.log("🏷️ Smart tagging used:", smartTaggingUsed);
                             
-                            // Smart tagging: convert first word to project/tag
-                            const words = title.trim().split(' ');
-                            console.log("🏷️ Words:", words);
+                            // Smart tagging: convert first word to project/tag when comma is pressed
+                            const parts = title.trim().split(',');
+                            console.log("🏷️ Parts:", parts);
                             
-                            if (words.length > 1 && words[0].length > 0) {
-                              const firstWord = words[0];
-                              const remainingText = words.slice(1).join(' ');
+                            if (parts.length > 1 && parts[0].trim().length > 0) {
+                              const firstWord = parts[0].trim();
+                              const remainingText = parts.slice(1).join(',').trim();
                               
                               console.log("🏷️ First word:", firstWord);
                               console.log("🏷️ Remaining text:", remainingText);
@@ -1647,7 +1622,7 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                         </Label>
                       </div>
                       <p className="text-xs text-muted-foreground ml-7">
-                        Automatically convert the first word of a task to a project/tag when you press spacebar.
+                        Automatically convert the first word of a task to a project/tag when you press comma (,).
                       </p>
 
                       <div className="flex items-center gap-3">

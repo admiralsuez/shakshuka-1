@@ -207,29 +207,30 @@ class DeveloperLogger {
   public downloadLogsAsFile(): void {
     try {
       const logsText = this.exportLogsToText();
-      const blob = new Blob([logsText], { type: 'text/plain;charset=utf-8' });
       
-      // Create a temporary URL for the blob
+      if (!logsText || logsText.length === 0) {
+        alert("No logs to export");
+        return;
+      }
+      
+      const blob = new Blob([logsText], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       
-      // Create a temporary anchor element
       const a = document.createElement('a');
       a.href = url;
-      a.download = `dev-logs-${new Date().toISOString().split('T')[0]}-${Date.now()}.txt`;
+      a.download = `logs-${Date.now()}.txt`;
       a.style.display = 'none';
       
-      // Add to DOM, click, and remove
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       
-      // Clean up the URL
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      URL.revokeObjectURL(url);
       
-      console.log("✅ Logs exported successfully");
+      console.log("✅ Logs exported");
     } catch (error) {
-      console.error("❌ Failed to export logs:", error);
-      throw error;
+      console.error("❌ Export failed:", error);
+      alert("Export failed: " + error);
     }
   }
 
