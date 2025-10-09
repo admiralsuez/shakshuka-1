@@ -204,6 +204,21 @@ export const DailyPlannerClient = () => {
         
         // Filter out completed tasks
         const activeTasks = data.filter(t => !t.completed);
+
+        // Add dummy task if no active tasks exist
+        if (activeTasks.length === 0) {
+          const dummyTask: Task = {
+            id: "dummy-task-1",
+            revision: 1,
+            title: "Sample Task - Drag me to schedule!",
+            completed: false,
+            tags: ["sample"],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          activeTasks.push(dummyTask);
+        }
+
         setTasks(activeTasks);
         console.log("✅ Set active tasks:", activeTasks.length);
 
