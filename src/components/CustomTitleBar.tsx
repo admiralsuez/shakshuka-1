@@ -18,19 +18,46 @@ export const CustomTitleBar = ({ title = "Shakshuka" }: CustomTitleBarProps) => 
     console.log("🔍 Checking for Tauri...");
     console.log("🔍 Window object:", typeof window !== "undefined");
     console.log("🔍 Tauri object:", (window as any).__TAURI__);
+    console.log("🔍 User agent:", navigator.userAgent);
     
-    // More robust Tauri detection
-    const isTauri = typeof window !== "undefined" && 
-                   (window as any).__TAURI__ && 
-                   (window as any).__TAURI__.webviewWindow;
+    // More robust Tauri detection - check multiple indicators
+    const hasTauriObject = typeof window !== "undefined" && (window as any).__TAURI__;
+    const hasWebviewWindow = hasTauriObject && (window as any).__TAURI__.webviewWindow;
+    const isTauriUserAgent = navigator.userAgent.includes('Tauri');
+    
+    console.log("🔍 Tauri indicators:", {
+      hasTauriObject,
+      hasWebviewWindow,
+      isTauriUserAgent
+    });
+    
+    const isTauri = hasTauriObject && hasWebviewWindow;
     
     if (isTauri) {
       console.log("✅ Tauri detected, enabling custom title bar");
       setIsTauriApp(true);
       // Check initial maximized state
       checkMaximizedState();
+      
+      // Listen for window resize events to update maximized state
+      const setupResizeListener = async () => {
+        try {
+          const { getCurrentWebviewWindow } = (window as any).__TAURI__.webviewWindow;
+          const webview = getCurrentWebviewWindow();
+          const unlisten = await webview.onResized(() => {
+            console.log("🔄 Window resized, checking maximized state...");
+            checkMaximizedState();
+          });
+          console.log("✅ Resize listener set up");
+          return unlisten;
+        } catch (error) {
+          console.error("❌ Error setting up resize listener:", error);
+        }
+      };
+      
+      setupResizeListener();
     } else {
-      console.log("❌ Tauri not detected, but showing title bar anyway for debugging");
+      console.log("❌ Tauri not detected, showing Web Mode");
       setIsTauriApp(false);
     }
   }, []);
@@ -49,36 +76,48 @@ export const CustomTitleBar = ({ title = "Shakshuka" }: CustomTitleBarProps) => 
   };
 
   const handleMinimize = async () => {
+    console.log("🔽 Minimize button clicked");
     try {
       if (typeof window !== "undefined" && (window as any).__TAURI__) {
+        console.log("🔍 Getting webview window for minimize...");
         const { getCurrentWebviewWindow } = (window as any).__TAURI__.webviewWindow;
         const webview = getCurrentWebviewWindow();
+        console.log("🔍 Webview object:", webview);
         await webview.minimize();
-        console.log("✅ Window minimized");
+        console.log("✅ Window minimized successfully");
+      } else {
+        console.log("❌ Tauri not available for minimize");
       }
     } catch (error) {
-      console.error("Error minimizing window:", error);
+      console.error("❌ Error minimizing window:", error);
     }
   };
 
   const handleMaximize = async () => {
+    console.log("🔲 Maximize button clicked, current state:", isMaximized);
     try {
       if (typeof window !== "undefined" && (window as any).__TAURI__) {
+        console.log("🔍 Getting webview window for maximize...");
         const { getCurrentWebviewWindow } = (window as any).__TAURI__.webviewWindow;
         const webview = getCurrentWebviewWindow();
+        console.log("🔍 Webview object:", webview);
         
         if (isMaximized) {
+          console.log("🔍 Restoring window...");
           await webview.unmaximize();
           setIsMaximized(false);
-          console.log("✅ Window restored");
+          console.log("✅ Window restored successfully");
         } else {
+          console.log("🔍 Maximizing window...");
           await webview.maximize();
           setIsMaximized(true);
-          console.log("✅ Window maximized");
+          console.log("✅ Window maximized successfully");
         }
+      } else {
+        console.log("❌ Tauri not available for maximize");
       }
     } catch (error) {
-      console.error("Error toggling maximize:", error);
+      console.error("❌ Error toggling maximize:", error);
     }
   };
 
