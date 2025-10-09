@@ -585,18 +585,20 @@ export const DailyPlannerClient = () => {
               Drag tasks from the left. Right-click scheduled tasks to adjust duration.
             </p>
           </div>
-          <div 
-            ref={scheduleRef} 
+          <div
+            ref={scheduleRef}
             className={`overflow-y-auto max-h-[calc(100vh-250px)] transition-colors ${
               isDraggingOverSchedule ? 'bg-primary/5' : ''
             }`}
             onDragOver={(e) => {
-              // Don't prevent default here - let time slots handle it
+              e.preventDefault();
+              e.stopPropagation();
               console.log("🎯 Drag over schedule container");
               setIsDraggingOverSchedule(true);
             }}
             onDragEnter={(e) => {
-              // Don't prevent default here - let time slots handle it
+              e.preventDefault();
+              e.stopPropagation();
               console.log("🎯 Drag enter schedule container");
               setIsDraggingOverSchedule(true);
             }}
