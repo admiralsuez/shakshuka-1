@@ -872,16 +872,20 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
   const addTask = () => {
     const sanitized = sanitizeTaskInput(title);
     const validation = validateTaskInput(sanitized);
-    
+
     if (!validation.valid) {
       toast.error(validation.error || "Invalid task");
       return;
     }
-    
-    const tags = tagsInput
+
+    const manualTags = tagsInput
       .split(",")
       .map(t => sanitizeTaskInput(t, 50))
       .filter(Boolean);
+
+    // Combine selected tags (from smart tagging) with manual tags
+    const allTags = [...new Set([...selectedTags, ...manualTags])];
+
     const now = Date.now();
     const newTask: Task = {
       id: generateUUID(),
@@ -892,13 +896,15 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
       createdAt: now,
       updatedAt: now,
       ...(dueDate ? { dueDate } : {}),
-      ...(tags.length ? { tags } : {}),
+      ...(allTags.length ? { tags: allTags } : {}),
     };
     setTasks(prev => [newTask, ...prev]);
     setTitle("");
     setNotes("");
     setDueDate("");
     setTagsInput("");
+    setSelectedTags([]);
+    setSmartTaggingUsed(false);
     setAddOpen(false);
     inputRef.current?.focus();
   };
@@ -1327,7 +1333,13 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
           <CardTitle className={`flex items-center justify-between text-xl`}>
             <span>Tasks {useTauriRef.current ? "(desktop data)" : "(local file-backed)"}</span>
             <div className="flex items-center gap-2">
-              <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <Dialog open={addOpen} onOpenChange={(open) => {
+                setAddOpen(open);
+                if (open) {
+                  setSmartTaggingUsed(false);
+                  setSelectedTags([]);
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button 
                     size="sm"
@@ -1346,44 +1358,55 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                       <Input
                         id="task-title"
                         ref={inputRef}
-                        placeholder="Task title"
+                        placeholder={settings?.experimentalFeatures?.smartTagging && !smartTaggingUsed ? "Type tag, press comma, then task title" : "Task title"}
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onKeyDown={(e) => { 
+                        onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             addTask();
                           } else if (e.key === "," && settings?.experimentalFeatures?.smartTagging && !smartTaggingUsed && title.trim().length > 0) {
+                            e.preventDefault();
                             console.log("🏷️ Smart tagging triggered with comma!");
                             console.log("🏷️ Current title:", title);
-                            
-                            // Smart tagging: convert first word to project/tag when comma is pressed
-                            const parts = title.trim().split(',');
-                            console.log("🏷️ Parts:", parts);
-                            
-                            if (parts.length > 1 && parts[0].trim().length > 0) {
-                              const firstWord = parts[0].trim();
-                              const remainingText = parts.slice(1).join(',').trim();
-                              
-                              console.log("🏷️ First word:", firstWord);
-                              console.log("🏷️ Remaining text:", remainingText);
-                              
-                              // Add first word as a tag
-                              if (!selectedTags.includes(firstWord)) {
-                                setSelectedTags([...selectedTags, firstWord]);
-                                console.log("🏷️ Added tag:", firstWord);
+
+                            // Smart tagging: convert text before comma to tag
+                            const currentTitle = title.trim();
+
+                            if (currentTitle.length > 0) {
+                              // Add current title as a tag
+                              if (!selectedTags.includes(currentTitle)) {
+                                setSelectedTags([...selectedTags, currentTitle]);
+                                console.log("🏷️ Added tag:", currentTitle);
                               }
-                              
-                              // Update title to remaining text
-                              setTitle(remainingText);
+
+                              // Clear title for new input
+                              setTitle("");
                               setSmartTaggingUsed(true);
-                              
-                              // Prevent default space behavior
-                              e.preventDefault();
+
                               console.log("🏷️ Smart tagging completed!");
                             }
                           }
                         }}
                       />
+                      {selectedTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedTags.map(tag => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary"
+                            >
+                              #{tag}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTags(selectedTags.filter(t => t !== tag))}
+                                className="hover:text-primary/70"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="task-due">Due date</Label>
