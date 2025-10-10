@@ -14,18 +14,26 @@ export const ExitConfirmation = ({ isOpen, onConfirm, onCancel }: ExitConfirmati
     <Dialog open={isOpen} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Exit Shakshuka?</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to close the application?
+          <DialogTitle className="text-xl">Quitting already?</DialogTitle>
+          <DialogDescription className="text-base pt-2">
+            Your progress will be saved automatically.
           </DialogDescription>
         </DialogHeader>
-        
-        <DialogFooter className="gap-4">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
+
+        <DialogFooter className="gap-3 sm:gap-3 flex-col sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            className="w-full sm:w-auto sm:flex-1"
+          >
+            But I couldn't stop. I had to push on
           </Button>
-          <Button variant="destructive" onClick={onConfirm}>
-            Exit
+          <Button
+            variant="default"
+            onClick={onConfirm}
+            className="w-full sm:w-auto sm:flex-1"
+          >
+            I was too tired to go on
           </Button>
         </DialogFooter>
       </DialogContent>
