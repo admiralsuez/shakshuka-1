@@ -95,54 +95,55 @@ export const CustomTitleBar = () => {
 
   return (
     <div
-      className="flex items-center justify-between bg-slate-800 text-white h-8 px-4 fixed top-0 left-0 right-0 z-50"
+      className="flex items-center justify-between bg-[#181818] text-[#cccccc] h-[35px] px-2 fixed top-0 left-0 right-0 z-50 border-b border-[#2d2d2d]"
       data-tauri-drag-region
     >
-      <div className="flex items-center gap-2" data-tauri-drag-region>
-        <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center">
-          <span className="text-xs font-bold text-white">S</span>
+      <div className="flex items-center gap-3 h-full" data-tauri-drag-region>
+        <div className="w-5 h-5 flex items-center justify-center" data-tauri-drag-region>
+          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#3794ff"/>
+            <path d="M2 17L12 22L22 17" stroke="#3794ff" strokeWidth="2"/>
+            <path d="M2 12L12 17L22 12" stroke="#3794ff" strokeWidth="2"/>
+          </svg>
         </div>
-        <span className="text-sm font-medium">Shakshuka</span>
+        <span className="text-[13px] font-normal text-[#cccccc]" data-tauri-drag-region>Shakshuka</span>
       </div>
 
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
+      <div className="flex items-center h-full">
+        <button
           onClick={handleMinimize}
-          className="h-6 w-8 p-0 hover:bg-slate-700 text-white"
+          className="h-full w-[46px] flex items-center justify-center hover:bg-[#2d2d2d] transition-colors"
           data-tauri-drag-region="false"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-            <rect width="10" height="1" x="1" y="5.5" />
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <rect width="10" height="1" y="5" fill="currentColor" />
           </svg>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
+        </button>
+        <button
           onClick={handleMaximize}
-          className="h-6 w-8 p-0 hover:bg-slate-700 text-white"
+          className="h-full w-[46px] flex items-center justify-center hover:bg-[#2d2d2d] transition-colors"
           data-tauri-drag-region="false"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+          <svg width="10" height="10" viewBox="0 0 10 10">
             {isMaximized ? (
-              <path d="M3 3h6v6H3V3zm1 1v4h4V4H4z" />
+              <>
+                <rect x="0" y="2" width="8" height="8" stroke="currentColor" strokeWidth="1" fill="none" />
+                <rect x="2" y="0" width="8" height="8" stroke="currentColor" strokeWidth="1" fill="#181818" />
+              </>
             ) : (
-              <path d="M2 2h8v8H2V2zm1 1v6h6V3H3z" />
+              <rect x="1" y="1" width="8" height="8" stroke="currentColor" strokeWidth="1" fill="none" />
             )}
           </svg>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
+        </button>
+        <button
           onClick={handleClose}
-          className="h-6 w-8 p-0 hover:bg-red-500 text-white"
+          className="h-full w-[46px] flex items-center justify-center hover:bg-[#e81123] transition-colors group"
           data-tauri-drag-region="false"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-            <path d="M3 3l6 6m0-6l-6 6" stroke="currentColor" strokeWidth="1" fill="none" />
+          <svg width="10" height="10" viewBox="0 0 10 10" className="group-hover:text-white">
+            <path d="M0.5 0.5L9.5 9.5M9.5 0.5L0.5 9.5" stroke="currentColor" strokeWidth="1" />
           </svg>
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -153,7 +154,7 @@ export const ConditionalHeader = ({ children }: { children: React.ReactNode }) =
   const isTauri = useIsTauri();
 
   return (
-    <header className={`w-full border-b bg-background sticky ${isTauri ? 'top-8' : 'top-0'} z-40`}>
+    <header className={`w-full border-b bg-background sticky ${isTauri ? 'top-[35px]' : 'top-0'} z-40`}>
       {children}
     </header>
   );
