@@ -330,19 +330,19 @@ export const DailyPlannerClient = () => {
     }
     console.log("🎯 Dragged task found:", task.title);
     setDraggedTask(task);
-    
-    // Set drag data for better compatibility
-    e.dataTransfer.setData("text/plain", taskId);
-    e.dataTransfer.effectAllowed = "move";
-    
-    // Don't set dropEffect here - it should be set on dragOver
-    // e.dataTransfer.dropEffect = "move";
-    
-    // Simplified drag image - don't clone, just use the element itself
-    e.dataTransfer.setDragImage(e.currentTarget as Element, 0, 0);
+
+    // Set multiple data formats for better compatibility across webviews
+    try {
+      e.dataTransfer.setData("text/plain", taskId);
+      e.dataTransfer.setData("application/json", JSON.stringify({ id: taskId, title: task.title }));
+      e.dataTransfer.effectAllowed = "move";
+    } catch (err) {
+      console.warn("DataTransfer setData failed:", err);
+    }
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent) => {
+    console.log("🎯 Drag ended, dropEffect:", e.dataTransfer.dropEffect);
     setDraggedTask(null);
     setDragOverSlot(null);
     setIsDraggingOverSchedule(false);
@@ -357,15 +357,32 @@ export const DailyPlannerClient = () => {
     e.preventDefault();
     e.stopPropagation();
     console.log("🎯 Drop event:", hour, minute);
-    
-    // Try to get task from state first, then from dataTransfer as fallback
+
+    // Try to get task from state first (most reliable in Tauri)
     let taskToSchedule = draggedTask;
-    
-    if (!taskToSchedule) {
-      const taskId = e.dataTransfer.getData("text/plain");
-      taskToSchedule = tasks.find(t => t.id === taskId) || null;
+
+    // Fallback: try to get from dataTransfer
+    if (!taskToSchedule && e.dataTransfer) {
+      try {
+        // Try JSON format first
+        const jsonData = e.dataTransfer.getData("application/json");
+        if (jsonData) {
+          const data = JSON.parse(jsonData);
+          taskToSchedule = tasks.find(t => t.id === data.id) || null;
+        }
+
+        // Fallback to plain text
+        if (!taskToSchedule) {
+          const taskId = e.dataTransfer.getData("text/plain");
+          if (taskId) {
+            taskToSchedule = tasks.find(t => t.id === taskId) || null;
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to get drag data:", err);
+      }
     }
-    
+
     if (!taskToSchedule) {
       console.log("❌ No dragged task found");
       return;
@@ -378,7 +395,7 @@ export const DailyPlannerClient = () => {
       title: taskToSchedule.title,
       hour,
       minute,
-      duration: 30, // Default 30 minutes
+      duration: 30,
       date: currentDateString,
       completed: false,
       createdAt: Date.now(),
@@ -386,7 +403,7 @@ export const DailyPlannerClient = () => {
     };
     setScheduled(prev => [...prev, newScheduled]);
     console.log("✅ Task scheduled successfully");
-    
+
     setDraggedTask(null);
     setDragOverSlot(null);
   };
@@ -432,14 +449,18 @@ export const DailyPlannerClient = () => {
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            e.dataTransfer.dropEffect = "move";
+            if (e.dataTransfer) {
+              e.dataTransfer.dropEffect = "move";
+            }
             console.log("🎯 Drag over time slot:", slot.label, "Setting dragOverSlot to:", { hour: slot.hour, minute: slot.minute, date: currentDateString });
             setDragOverSlot({ hour: slot.hour, minute: slot.minute, date: currentDateString });
           }}
           onDragEnter={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            e.dataTransfer.dropEffect = "move";
+            if (e.dataTransfer) {
+              e.dataTransfer.dropEffect = "move";
+            }
             console.log("🎯 Drag enter time slot:", slot.label);
           }}
           onDragLeave={(e) => {
@@ -560,7 +581,7 @@ export const DailyPlannerClient = () => {
                   onDragEnd={(e) => {
                     console.log("🔥 DRAG END EVENT FIRED!");
                     e.stopPropagation();
-                    handleDragEnd();
+                    handleDragEnd(e);
                   }}
                   className="flex items-center gap-2 p-3 rounded-md border border-border bg-card cursor-grab active:cursor-grabbing hover:bg-accent transition-colors"
                   style={{ 
