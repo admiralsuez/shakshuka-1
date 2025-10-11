@@ -9,9 +9,22 @@ export const useIsTauri = () => {
   const [isTauri, setIsTauri] = useState(false);
 
   useEffect(() => {
-    const checkTauri = () => {
-      const tauriAvailable = typeof window !== "undefined" && (window as any).__TAURI__;
-      setIsTauri(tauriAvailable);
+    const checkTauri = async () => {
+      if (typeof window === "undefined") {
+        setIsTauri(false);
+        return;
+      }
+
+      // Check for Tauri API
+      const hasTauriAPI = !!(window as any).__TAURI__;
+
+      // Also check for TAURI_PLATFORM env variable (available in production)
+      const hasTauriPlatform = !!(window as any).__TAURI_INTERNALS__;
+
+      const isTauriEnv = hasTauriAPI || hasTauriPlatform;
+
+      console.log("Tauri detection:", { hasTauriAPI, hasTauriPlatform, isTauriEnv });
+      setIsTauri(isTauriEnv);
     };
 
     checkTauri();

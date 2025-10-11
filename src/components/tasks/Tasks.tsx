@@ -1547,34 +1547,35 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
 
           {/* First-Time Setup Dialog */}
           <Dialog open={showSetupDialog} onOpenChange={(open) => { if (!open && showSetupDialog) return; setShowSetupDialog(open); }}>
-            <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
               <DialogHeader>
-                <DialogTitle className="text-2xl text-center">Welcome! 👋</DialogTitle>
+                <DialogTitle className="text-xl sm:text-2xl text-center">Welcome! 👋</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <p className="text-center text-sm text-muted-foreground">
+              <div className="space-y-3 sm:space-y-4 py-3 sm:py-4">
+                <p className="text-center text-xs sm:text-sm text-muted-foreground">
                   Let's personalize your experience
                 </p>
                 
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="setup-name">Your Name (optional)</Label>
+                <div className="grid gap-3 sm:gap-4">
+                  <div className="grid gap-1.5 sm:gap-2">
+                    <Label htmlFor="setup-name" className="text-sm">Your Name (optional)</Label>
                     <Input
                       id="setup-name"
                       placeholder="What should we call you?"
                       value={setupName}
                       onChange={(e) => setSetupName(e.target.value)}
+                      className="text-sm"
                     />
-                    <p className="text-xs text-muted-foreground">Used in greetings</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Used in greetings</p>
                   </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="setup-reset-hour">Daily Reset Time</Label>
+
+                  <div className="grid gap-1.5 sm:gap-2">
+                    <Label htmlFor="setup-reset-hour" className="text-sm">Daily Reset Time</Label>
                     <select
                       id="setup-reset-hour"
                       value={setupResetHour}
                       onChange={(e) => setSetupResetHour(Number(e.target.value))}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="flex h-9 sm:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>
@@ -1582,87 +1583,91 @@ export const Tasks = forwardRef<TasksHandle, { compact?: boolean }>(({ compact =
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs text-muted-foreground">When should your tasks refresh?</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">When tasks refresh</p>
                   </div>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="setup-color">Favorite Color</Label>
+
+                  <div className="grid gap-1.5 sm:gap-2">
+                    <Label htmlFor="setup-color" className="text-sm">Favorite Color</Label>
                     <div className="flex gap-2">
                       <Input
                         id="setup-color"
                         type="color"
                         value={setupFavoriteColor}
                         onChange={(e) => setSetupFavoriteColor(e.target.value)}
-                        className="h-10 w-20 cursor-pointer"
+                        className="h-9 sm:h-10 w-16 sm:w-20 cursor-pointer"
                       />
                       <Input
                         type="text"
                         value={setupFavoriteColor}
                         onChange={(e) => setSetupFavoriteColor(e.target.value)}
                         placeholder="#007AFF"
-                        className="flex-1"
+                        className="flex-1 text-xs sm:text-sm"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">Used for button accents</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Button accents</p>
                   </div>
 
-                  <div className="grid gap-2">
-                    <div className="flex items-center gap-3">
+                  <div className="grid gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <input
                         type="checkbox"
                         id="setup-open-in-browser"
                         checked={setupOpenInBrowser}
                         onChange={(e) => setSetupOpenInBrowser(e.target.checked)}
-                        className="h-4 w-4 rounded border-input"
+                        className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-input"
                       />
-                      <Label htmlFor="setup-open-in-browser" className="cursor-pointer">
+                      <Label htmlFor="setup-open-in-browser" className="cursor-pointer text-xs sm:text-sm">
                         Open in System Browser
                       </Label>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Prefer opening the app in your system browser instead of the desktop app.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground ml-5 sm:ml-7">
+                      Use browser instead of desktop app
                     </p>
                   </div>
 
                   {/* Experimental Features Section */}
-                  <div className="border-t pt-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Label className="text-sm font-medium">🧪 Experimental Features</Label>
-                      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">BETA</span>
+                  <div className="border-t pt-3 sm:pt-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                      <Label className="text-xs sm:text-sm font-medium">🧪 Experimental</Label>
+                      <span className="text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full">BETA</span>
                     </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id="setup-smart-tagging"
-                          checked={setupSmartTagging}
-                          onChange={(e) => setSetupSmartTagging(e.target.checked)}
-                          className="h-4 w-4 rounded border-input"
-                        />
-                        <Label htmlFor="setup-smart-tagging" className="cursor-pointer text-sm">
-                          Smart Tagging
-                        </Label>
-                      </div>
-                      <p className="text-xs text-muted-foreground ml-7">
-                        Automatically convert the first word of a task to a project/tag when you press comma (,).
-                      </p>
 
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id="setup-date-shortcuts"
-                          checked={setupDateShortcuts}
-                          onChange={(e) => setSetupDateShortcuts(e.target.checked)}
-                          className="h-4 w-4 rounded border-input"
-                        />
-                        <Label htmlFor="setup-date-shortcuts" className="cursor-pointer text-sm">
-                          Date Picker Shortcuts
-                        </Label>
+                    <div className="space-y-2 sm:space-y-3">
+                      <div>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <input
+                            type="checkbox"
+                            id="setup-smart-tagging"
+                            checked={setupSmartTagging}
+                            onChange={(e) => setSetupSmartTagging(e.target.checked)}
+                            className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-input"
+                          />
+                          <Label htmlFor="setup-smart-tagging" className="cursor-pointer text-xs sm:text-sm">
+                            Smart Tagging
+                          </Label>
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground ml-5 sm:ml-7 mt-1">
+                          Auto-tag with comma key
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground ml-7">
-                        Show "Today", "Tomorrow", and "This Week" buttons for quick date selection.
-                      </p>
+
+                      <div>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <input
+                            type="checkbox"
+                            id="setup-date-shortcuts"
+                            checked={setupDateShortcuts}
+                            onChange={(e) => setSetupDateShortcuts(e.target.checked)}
+                            className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-input"
+                          />
+                          <Label htmlFor="setup-date-shortcuts" className="cursor-pointer text-xs sm:text-sm">
+                            Date Shortcuts
+                          </Label>
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground ml-5 sm:ml-7 mt-1">
+                          Quick date buttons
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
